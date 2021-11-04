@@ -1,0 +1,14 @@
+print "How many numbers will you input? ";
+printf("hey %s, I am %d years old.", "Sam", 10)
+get num;
+
+i=0;
+sum=0;
+while i < num
+do
+  get _x;
+  sum = sum + _x;
+end;
+
+q = sum / num;
+r = sum % num;

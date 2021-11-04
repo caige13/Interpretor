@@ -1,0 +1,9 @@
+def functionName(a, b, c) begin
+	print("hello")
+	d = -3
+
+while(d < 3)
+do
+	d = d + 1
+end
+print(d)
