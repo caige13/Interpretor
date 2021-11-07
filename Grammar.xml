@@ -1,0 +1,93 @@
+        <prog>  -> <stmt_list>
+    <stmt_list> -> ∈
+                | <stmt>";"<stmt_list>
+        <stmt>  -> <print>
+                | <printf> // For the people obsessed with C
+                | <input>
+                | <assign> // arrays also
+                | <if>
+                | <while>
+                | <for>
+                | <function-def>
+        <print> -> "print" "(" <prnt-arg> ")"
+    <prnt-arg>  -> ∈
+                | <value> <prnt-expr>
+    <prnt-expr> -> ∈
+                | <str-operation> <prnt-expr>
+                | "," <value> <prnt-expr> // ONLY ALLOW INT+STRING IN PRINT STATEMENT. Will concat. Leave out of <str-operation> to make that reusable.
+        <printf>-> "printf" "(" <prntf-arg> ")"
+    <prntf-arg> -> STRING
+                | FSTRING <prntf-expr> // Regular expression mandates that %d %s are in it.
+    <prntf-expr>-> ∈
+                | "," <value> <prntf-expr>
+        <input> -> "get" ID
+        <assign>-> "int" ID "=" <assign-intopt>
+                | "str" ID "=" <assign-stropt
+        <if>    -> "if" <int-expr> "then" <stmt_list> <if-options> "end"
+<if-options>    -> ∈
+                | "elif" <int-expr> "then" <stmt_list> <if-options>
+                | "else" <stmt_list>
+        <while> -> "while" <int-expr> "do" <stmt_list> "end"
+        <for>   -> "for" <assign> ";" <int-expr> ";" <int-expr> "do" <stmt_list> "end"
+<assign-intopt> -> <int-expr>
+                | "[" <int-arg> "]"
+<assign-stropt> -> <str-expr>
+                | "[" <str-arg> "]"
+    <int-arg>   -> ∈ 
+                | <int-expr> <int-arg'>
+    <int-arg'>  -> ∈
+                |"," <int-expr> <int-arg'>
+    <str-arg>   -> ∈ 
+                | <str-expr> <str-arg'>
+    <str-arg'>  -> ∈
+                | "," <str-expr> <str-arg'>
+<function-def>  -> "def" ID "(" <params>
+        <params>-> <params'>
+                | ID <params'>
+    <params'>   -> ")" "begin" <stmt_list> <return> "end"
+                | "," ID <params'>
+    <str-expr>  -> <nonint-value> <str-operation>
+    <int-expr>  -> <n_expr> <logic> //Note function call is included
+        <n_expr>-> <term> <first-degree>
+        <term>  -> <factor> <second-degree>
+<str-operation> -> ∈
+                | ADD <str-operation'> <str-operation>
+<str-operation'>-> <nonint-value>
+    <compare>   -> ∈
+                | ">" <int-value>
+                | ">=" <int-value>
+                | "<" <int-value>
+                | "<=" <int-value>
+                | "==" <int-value>
+                | "!=" <int-value>
+        <logic> -> ∈
+                | AND <n_expr> // "and"
+                | OR <n_expr> // "or"
+<first-degree>  -> ∈
+                | ADD // INTs will be tokenized as only positive ints
+                | SUBTRACT // interpreter may have to differentiate "-" ID and Subtract
+<second-degree> -> ∈
+                | MULTIPLY //"*"
+                | DIVIDE // "/"
+                | MODULO // "%"
+        <factor>-> <int-value> <compare>
+<ID-operation>  -> ∈
+                | "[" <int-value> "]"
+                | "(" <params> ")"
+        <value> -> <raw-int>
+                | <raw-nonint>
+                | <ambiguous>
+<nonint-value>  -> <raw-nonint>
+                | <ambiguous>
+    <int-value> -> <raw-int>
+                | "-" <int-value>
+                | <ambiguous>
+    <raw-int>   -> INT
+                | "int" "(" <value> ")"
+    <raw-nonint>-> STRING
+                | "str" "(" <value> ")"
+    <ambiguous> -> ID <ID-operation>
+        <return>-> ∈
+                | "return" <return-option>
+<return-option> -> <str-expr>
+                | <int-expr>

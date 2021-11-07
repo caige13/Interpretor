@@ -22,35 +22,12 @@ class Tok(enum.Enum):
     OR = 15
     FSTRING = 16
 
-class Symbol(object):
-    def __init__(self, name, scope, type=None):
-        self.name = name
-        self.type = type
-        self.scope = scope
-
-class BuiltInTypeSymbol(Symbol):
-    def __init__(self, name):
-        super().__init__(name)
-
-    def __str__(self):
-        return self.name
-
-    __repr__ = __str__
-
-class VarSymbol(Symbol):
-    def __init__(self, name, type):
-        super().__init__(name, type)
-
-    def __str__(self):
-        return '<{name}:{type}>'.format(name=self.name, type=self.type)
-
-    __repr__ = __str__
-
 class Lexer():
     def __init__(self, source_code: str):
         self.input = source_code
         self.line = 1
         self.index = 0
+        self.tokenSaved = -1
 
     def __lookUp(self, lexeme):
         # First this is better than just a long if statement. Second I can map a keyword to a specific Token
@@ -73,11 +50,11 @@ class Lexer():
             self.index += 1
         else:
             i = self.index
-        while i < len(self.input) and input[i].isspace():
-            if input[self.index] == "\n":
+        while i < len(self.input) and self.input[i].isspace():
+            if self.input[self.index] == "\n":
                 return [Tok.ERROR, "New Line found in the middle of a statement at line " + str(self.line)]
             i += 1
-        while i < len(self.input) and input[i].isdigit():
+        while i < len(self.input) and self.input[i].isdigit():
             i += 1
         response = [Tok.INT, sign * int("".join(self.input[self.index:i]))]
         self.index = i
@@ -113,12 +90,19 @@ class Lexer():
         else:
             return [Tok.STRING, "\""+content+"\""]
 
+    def saveToken(self, token):
+        self.tokenSaved = token
+
     def lex(self):
-        while self.index < len(self.input) and input[self.index].isspace():
-            if input[self.index] == "\n":
+        if self.tokenSaved != -1:
+            temp = self.tokenSaved
+            self.tokenSaved = -1
+            return temp
+        while self.index < len(self.input) and self.input[self.index].isspace():
+            if self.input[self.index] == "\n":
                 self.line = self.line +1
             self.index = self.index + 1
-        if self.index >= len(input):
+        if self.index >= len(self.input):
             return [Tok.END_OF_INPUT, ""]
         if self.input[self.index] == "=":
             self.index += 1
@@ -132,9 +116,6 @@ class Lexer():
         elif self.input[self.index] == ",":
             self.index += 1
             return [Tok.LEXEME, ","]
-        elif self.input[self.index] == "$":
-            self.index += 1
-            return [Tok.LEXEME, "$"]
         elif self.input[self.index] == ";":
             self.index += 1
             return [Tok.LEXEME, ";"]
@@ -185,27 +166,16 @@ class Lexer():
         elif self.input[self.index] == "]":
             self.index += 1
             return [Tok.LEXEME, "]"]
+        elif self.input[self.index] == "{":
+            self.index +=1
+            return [Tok.LEXEME, "{"]
+        elif self.input[self.index] == "}":
+            self.index += 1
+            return [Tok.LEXEME, "}"]
         elif self.input[self.index] == "\"":
             return self.__ParseOutString()
-        elif input[self.index] == "_" or input[self.index].isalpha():
+        elif self.input[self.index] == "_" or self.input[self.index].isalpha():
             # Transition on an underscore or a letter
             return self.__lexIdOrKeyword()
         else:
             return [Tok.ERROR, "Unexpected character '" + self.input[self.index] + "' on line " + str(self.line)]
-
-
-
-input_file = sys.argv[1]
-file = open(input_file, "r")
-
-input = file.read()
-file.close()
-
-lexer= Lexer(input)
-
-next = lexer.lex()
-while next[0] != Tok.END_OF_INPUT and next[0] != Tok.ERROR:
-    print(next)
-    next = lexer.lex()
-if next[0] == Tok.ERROR:
-    print("ERROR: " + next[1])
