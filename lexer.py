@@ -21,6 +21,7 @@ class Tok(enum.Enum):
     AND = 14
     OR = 15
     FSTRING = 16
+    COMPARESYMBOL = 17
 
 class Lexer():
     def __init__(self, source_code: str):
@@ -35,12 +36,10 @@ class Lexer():
         keywords = { "if": Tok.KEYWORD, "elif": Tok.KEYWORD, "else": Tok.KEYWORD, "get": Tok.KEYWORD,
                      "print": Tok.KEYWORD, "for": Tok.KEYWORD, "while": Tok.KEYWORD, "do": Tok.KEYWORD,
                      "begin": Tok.KEYWORD, "end": Tok.KEYWORD, "and": Tok.AND, "or": Tok.OR, "str": Tok.KEYWORD,
-                     "int": Tok.KEYWORD, "printf": Tok.KEYWORD, "def": Tok.KEYWORD, "return": Tok.KEYWORD}
+                     "int": Tok.KEYWORD, "printf": Tok.KEYWORD, "def": Tok.KEYWORD, "return": Tok.KEYWORD,
+                     "then": Tok.KEYWORD}
         if lexeme in keywords:
             return [keywords[lexeme], lexeme]
-        elif re.search("[A-Z, a-z,0-9, r,, r., r!, r$, r@, r^, r&,r*,r(,r),r+,r_,r+]([%][d,s])+|"
-                       "([%][d,s])+[A-Z, a-z,0-9, r,, r., r!, r$, r@, r^, r&,r*,r(,r),r+,r_,r+]", lexeme):
-            return [Tok.FSTRING, lexeme]
         else:
             return [Tok.ID, lexeme]
 
@@ -105,12 +104,16 @@ class Lexer():
         if self.index >= len(self.input):
             return [Tok.END_OF_INPUT, ""]
         if self.input[self.index] == "=":
-            self.index += 1
-            return [Tok.LEXEME, "="]
+            if (self.index < len(self.input) and self.input[self.index + 1] == "="):
+                self.index += 2
+                return [Tok.COMPARESYMBOL, "=="]
+            else:
+                self.index += 1
+                return [Tok.LEXEME, "="]
         elif self.input[self.index] == "!":
             if(self.index < len(self.input) and self.input[self.index+1] == "="):
                 self.index += 2
-                return [Tok.LEXEME, "!="]
+                return [Tok.COMPARESYMBOL, "!="]
             else:
                 return [Tok.ERROR, "Found ! without a '=' after it on line: "+str(self.line)]
         elif self.input[self.index] == ",":
@@ -135,23 +138,19 @@ class Lexer():
             self.index += 1
             return [Tok.MULTIPLY, "*"]
         elif self.input[self.index] == "<":
-            self.index += 1
-            return [Tok.LEXEME, "<"]
+            if (self.index < len(self.input) and self.input[self.index + 1] == "="):
+                self.index += 2
+                return [Tok.COMPARESYMBOL, "<="]
+            else:
+                self.index += 1
+                return [Tok.COMPARESYMBOL, "<"]
         elif self.input[self.index] == ">":
-            self.index += 1
-            return [Tok.LEXEME, ">"]
-        elif self.input[self.index] == "<=":
-            self.index += 1
-            return [Tok.LEXEME, "<="]
-        elif self.input[self.index] == ">=":
-            self.index += 1
-            return [Tok.LEXEME, ">="]
-        elif self.input[self.index] == "==":
-            self.index += 1
-            return [Tok.LEXEME, "=="]
-        elif self.input[self.index] == "!=":
-            self.index += 1
-            return [Tok.LEXEME, "!="]
+            if (self.index < len(self.input) and self.input[self.index + 1] == "="):
+                self.index += 2
+                return [Tok.COMPARESYMBOL, ">="]
+            else:
+                self.index += 1
+                return [Tok.COMPARESYMBOL, ">"]
         elif self.input[self.index].isdigit():
             return self.__lexInt(1)
         elif self.input[self.index] == ")":

@@ -1,10 +1,12 @@
 def increment(a) begin
-	a = a + 1
+	int a = a + 1;
 	return a
 end;
 
-d = -3
-if d != 3 then d = 5 end;
-$increment(d);
+int d = -3;
+if d != 3 then d = 5 
+elif d == 3 then d = 2
+else d = -1 end;
+increment(d);
 print(d);
 if !d then print(d) end;

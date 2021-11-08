@@ -20,9 +20,12 @@
                 | FSTRING <prntf-expr> // Regular expression mandates that %d %s are in it.
     <prntf-expr>-> ∈
                 | "," <value> <prntf-expr>
-        <input> -> "get" ID
+        <input> -> "get" ID <input-mult>
+<input-mult>    -> ∈
+                | "{" STRING "}" <input-mult>
+                | "," ID <input-mult>
         <assign>-> "int" ID "=" <assign-intopt>
-                | "str" ID "=" <assign-stropt
+                | "str" ID "=" <assign-stropt>
         <if>    -> "if" <int-expr> "then" <stmt_list> <if-options> "end"
 <if-options>    -> ∈
                 | "elif" <int-expr> "then" <stmt_list> <if-options>
@@ -41,10 +44,10 @@
                 | <str-expr> <str-arg'>
     <str-arg'>  -> ∈
                 | "," <str-expr> <str-arg'>
-<function-def>  -> "def" ID "(" <params>
-        <params>-> <params'>
+<function-def>  -> "def" ID "(" <params> ")" "begin" <stmt_list> <return> "end"
+        <params>-> ∈
                 | ID <params'>
-    <params'>   -> ")" "begin" <stmt_list> <return> "end"
+    <params'>   -> ∈
                 | "," ID <params'>
     <str-expr>  -> <nonint-value> <str-operation>
     <int-expr>  -> <n_expr> <logic> //Note function call is included
@@ -64,12 +67,12 @@
                 | AND <n_expr> // "and"
                 | OR <n_expr> // "or"
 <first-degree>  -> ∈
-                | ADD // INTs will be tokenized as only positive ints
-                | SUBTRACT // interpreter may have to differentiate "-" ID and Subtract
+                | ADD <n_expr>// INTs will be tokenized as only positive ints
+                | SUBTRACT <n_expr>// interpreter may have to differentiate "-" ID and Subtract
 <second-degree> -> ∈
-                | MULTIPLY //"*"
-                | DIVIDE // "/"
-                | MODULO // "%"
+                | MULTIPLY <term>//"*"
+                | DIVIDE <term>// "/"
+                | MODULO <term>// "%"
         <factor>-> <int-value> <compare>
 <ID-operation>  -> ∈
                 | "[" <int-value> "]"
@@ -80,7 +83,8 @@
 <nonint-value>  -> <raw-nonint>
                 | <ambiguous>
     <int-value> -> <raw-int>
-                | "-" <int-value>
+                | SUBTRACT <int-value>
+                | ADD <int-value>
                 | <ambiguous>
     <raw-int>   -> INT
                 | "int" "(" <value> ")"

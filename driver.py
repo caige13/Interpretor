@@ -11,6 +11,7 @@ file.close()
 
 if option == "p" or option == "parse":
     parser = Parse(input)
+    parser.parse()
 elif option == "l" or option == "lex":
     lexer = Lexer(input)
     next = lexer.lex()
