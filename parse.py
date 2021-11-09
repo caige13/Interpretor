@@ -1,13 +1,22 @@
 from lexer import Lexer, Tok
-from symbol_table import FunctionSymbolTable
+from symbol_table import FunctionSymbolTable, FuncSymbol, VarSymbol, LoopSymbol, VarSymbolTable
 
+
+# NOTES: Potentially dont have to track variables in the Function Table but instead in a seperate Var Table.
+# Every time you do a definition in the Var Table must check if the varaible already exists and if it does, we care
+# about the scope and the type. Potential easy solution is to just not allow dynamic typing and variable cannot change
+# Type. To do this when you realize a confliction check the types, if different error, if not then do something.
 class Parse():
     def __init__(self, input):
         self.nextToken = []
         self.lexer = Lexer(input)
         # certain keyword will add and take away from scope
-        self.cur_scope = "main"
+        self.cur_scope = "globe/main"
+        self.scope_stack = []
         self.FunctionTable = FunctionSymbolTable()
+        self.VarTable = VarSymbolTable()
+        self.for_count = 0
+        self.while_count = 0
 
     def __parseError(self, msg, handle_semicolon=False):
         if handle_semicolon:
@@ -21,24 +30,28 @@ class Parse():
             print("Lex Error: "+str(self.nextToken[1]))
             exit()
 
-    def __parseReturn_Option(self):
+    def __parseReturn_Option(self, funcSymbol):
         if self.__parseStr_Expr():
-            return True
+            return self.FunctionTable.updateType(funcSymbol, "string")
         elif self.__parseInt_Expr():
-            return True
+            return self.FunctionTable.updateType(funcSymbol, "integer")
         else:
             return False
 
-    def __parseReturn(self):
+    def __parseReturn(self, funcSymbol):
         if self.nextToken[0]==Tok.KEYWORD and self.nextToken[1]=="return":
-            if self.__parseReturn_Option():
-                if self.nextToken[0]==Tok.LEXEME and self.nextToken[1]==";":
-                    self.__parseError("There should not be a semi colon after a return statement")
-                    return False
+            if self.FunctionTable.updateType(funcSymbol, "true"):
+                if self.__parseReturn_Option(funcSymbol):
+                    if self.nextToken[0]==Tok.LEXEME and self.nextToken[1]==";":
+                        self.__parseError("There should not be a semi colon after a return statement")
+                        return False
+                    else:
+                        return True
                 else:
-                    return True
+                    self.__parseError("Must return something that is a string or integer expression")
+                    return False
             else:
-                self.__parseError("Must return something that is a string or integer expression")
+                self.__parseError("There was a error inside the Function Symbol Table when Updating Type")
                 return False
         else:
             self.lexer.saveToken(self.nextToken)
@@ -146,8 +159,7 @@ class Parse():
             else:
                 return False
         elif self.nextToken[0]==Tok.OPENPARENTHESIS:
-            if self.__parseParams():
-                self.__lex()
+            if self.__parseCall_Params():
                 if self.nextToken[0]==Tok.CLOSEPARENTHESIS:
                     return True
                 else:
@@ -273,6 +285,30 @@ class Parse():
         else:
             return False
 
+    def __parseCall_ParamsMult(self):
+        self.__lex()
+        if self.nextToken[0] == Tok.CLOSEPARENTHESIS and self.nextToken[1] == ")":
+            return True
+        elif self.nextToken[0] == Tok.LEXEME and self.nextToken[1] == ",":
+            self.__lex()
+            if self.__parseValue():
+                return self.__parseCall_ParamsMult()
+            else:
+                self.__parseError("Expected an ID but received '" + str(self.nextToken[1]) + "'")
+                return False
+        else:
+            self.__parseError("Expected ',' or ')' for function call")
+            return False
+
+    def __parseCall_Params(self):
+        self.__lex()
+        if self.nextToken[0] == Tok.LEXEME and self.nextToken[1] == ")":
+            return True
+        elif self.__parseValue():
+            return self.__parseCall_ParamsMult()
+        else:
+            self.__parseError("Expected ')' or ID as parameters")
+            return False
 
     # Mult is used instead of ' if you are doing a direct comparison to the grammar.
     def __parseParamsMult(self):
@@ -350,6 +386,7 @@ class Parse():
     def __parseAssign_Stropt(self):
         self.__lex()
         if self.nextToken[0] == Tok.ID:
+            ID = self.nextToken[1]
             self.__lex()
             if self.nextToken[0] == Tok.LEXEME and self.nextToken[1] == "=":
                 self.__lex()
@@ -357,26 +394,27 @@ class Parse():
                     if self.__parseStr_Arg():
                         if self.lexer.tokenSaved != -1:
                             self.__lex()
-                            return True
+                            return [ID, True]
                         else:
-                            return True
+                            return [ID, True]
                     else:
-                        return False
+                        return [ID, False]
                 self.lexer.saveToken(self.nextToken)
                 if self.__parseStr_Expr():
-                    return True
+                    return [ID, True]
                 else:
                     self.__parseError("Expected Array Assignment or string expression, but got '" + str(self.nextToken[1]) + "'")
             else:
                 self.__parseError("Expected '=' sign in assignment statement")
-                return False
+                return [ID, False]
         else:
             self.__parseError("No ID was given to assign to")
-            return False
+            return [0, False]
 
     def __parseAssign_Intopt(self):
         self.__lex()
         if self.nextToken[0]==Tok.ID:
+            ID = self.nextToken[1]
             self.__lex()
             if self.nextToken[0]==Tok.LEXEME and self.nextToken[1]=="=":
                 self.__lex()
@@ -384,23 +422,23 @@ class Parse():
                     if self.__parseInt_Arg():
                         if self.lexer.tokenSaved != -1:
                             self.__lex()
-                            return True
+                            return [ID, True]
                         else:
-                            return True
+                            return [ID, True]
                     else:
-                        return False
+                        return [ID, False]
                 self.lexer.saveToken(self.nextToken)
                 if self.__parseInt_Expr():
-                    return True
+                    return [ID, True]
                 else:
                     self.__parseError("Expected Array Assignment or int expression, but got '"+str(self.nextToken[1])+"'")
-                    return False
+                    return [ID, False]
             else:
                 self.__parseError("Expected '=' sign in assignment statement")
-                return False
+                return [ID, False]
         else:
             self.__parseError("No ID was given to assign to")
-            return False
+            return [0, False]
 
     def __parseIf_Options(self):
         if self.nextToken[0] == Tok.KEYWORD and self.nextToken[1] == "end":
@@ -502,15 +540,18 @@ class Parse():
                 if self.__parseParams():
                     self.__lex()
                     if self.nextToken[0]==Tok.KEYWORD and self.nextToken[1]=="begin":
-                        self.cur_scope = ID
-
+                        self.scope_stack.append(self.cur_scope)
+                        self.cur_scope = "globe/"+ID
+                        funcSymbol = FuncSymbol(ID)
+                        self.FunctionTable.defineFunction(funcSymbol)
                         self.__lex()
                         if self.__parseStmt_List():
                             if self.nextToken[0] == Tok.KEYWORD and self.nextToken[1] == "end":
                                 return True
-                            if self.__parseReturn():
+                            if self.__parseReturn(funcSymbol):
                                 self.__lex()
                                 if self.nextToken[0]==Tok.KEYWORD and self.nextToken[1]=="end":
+                                    self.cur_scope = self.scope_stack.pop()
                                     return True
                                 else:
                                     self.__parseError("Expected 'end' to finish the Function")
@@ -534,7 +575,18 @@ class Parse():
     def __parseFor(self):
         self.__lex()
         if self.nextToken[0]==Tok.KEYWORD and self.nextToken[1]=="int":
-            if self.__parseAssign_Intopt():
+            self.for_count = self.for_count + 1
+            forSymbol = LoopSymbol(name="for"+str(self.for_count),scope=self.cur_scope)
+            self.FunctionTable.defineFunction(forSymbol)
+            self.scope_stack.append(self.cur_scope)
+            self.cur_scope += "/for"+str(self.for_count)
+            table_out = self.FunctionTable.lookupSymbol(forSymbol)
+            ID, success = self.__parseAssign_Intopt()
+            varSym = VarSymbol(name=ID, type="integer", scope=self.cur_scope)
+            self.VarTable.define(varSym)
+            table_out[1].define(varSym) # Choice made to not check if ID defined in prev. scopes to
+                                        # default the loop counter to this Variable.
+            if success:
                 self.__lex()
                 if self.nextToken[0]==Tok.LEXEME and self.nextToken[1]==";":
                     if self.__parseInt_Expr():
@@ -546,6 +598,9 @@ class Parse():
                                     self.__lex()
                                     if self.__parseStmt_List():
                                         if self.nextToken[0] == Tok.KEYWORD and self.nextToken[1] == "end":
+                                            self.for_count -= 1
+                                            self.FunctionTable.deleteEntry(forSymbol)
+                                            self.cur_scope = self.scope_stack.pop()
                                             return True
                                         else:
                                             self.__parseError("Expected 'end' to finish the 'for' loop statement")
@@ -574,12 +629,20 @@ class Parse():
             return False
 
     def __parseWhile(self):
+        self.while_count += 1
+        whileSymbol = LoopSymbol(name="while" + str(self.while_count), scope=self.cur_scope)
+        self.FunctionTable.defineFunction(whileSymbol)
+        self.scope_stack.append(self.cur_scope)
         if self.__parseInt_Expr():
             self.__lex()
             if self.nextToken[0]==Tok.KEYWORD and self.nextToken[1]=="do":
+                self.cur_scope += "/while" + str(self.while_count)
                 self.__lex()
                 if self.__parseStmt_List():
                     if self.nextToken[0]==Tok.KEYWORD and self.nextToken[1]=="end":
+                        self.while_count -= 1
+                        self.FunctionTable.deleteEntry(whileSymbol)
+                        self.cur_scope = self.scope_stack.pop()
                         return True
                     else:
                         self.__parseError("Expected 'end' to finish the while loop statement")
@@ -612,37 +675,54 @@ class Parse():
             self.__parseError("Expected a Integer expression for the if condition")
             return False
 
-    def __parseInput_Mult(self):
+    def __parseInput_Mult(self, IDs):
         self.__lex()
-        if self.nextToken[0]==Tok.LEXEME and self.nextToken=="{":
+        if self.nextToken[0]==Tok.LEXEME and self.nextToken[1]=="{":
             self.__lex()
             if self.nextToken[0]==Tok.STRING:
                 self.__lex()
                 if self.nextToken[0]==Tok.LEXEME and self.nextToken[1]=="}":
-                    return self.__parseInput_Mult()
+                    return self.__parseInput_Mult(IDs)
                 else:
                     self.__parseError("Expected a '}' to close off the message in get")
-                    return False
+                    return IDs, False
             else:
                 self.__parseError("Expected a string after '{'")
-                return False
+                return IDs, False
         elif self.nextToken[0]==Tok.LEXEME and self.nextToken[1]==",":
+            self.__lex()
             if self.nextToken[0]==Tok.ID:
-                return self.__parseInput_Mult()
+                IDs.append(self.nextToken[1])
+                return self.__parseInput_Mult(IDs)
             else:
                 self.__parseError("Expected an ID(String, Variable, Int) after ','")
-                return False
+                return IDs, False
         elif self.nextToken[0]==Tok.LEXEME and self.nextToken[1]==";":
             self.lexer.saveToken(self.nextToken)
-            return True
+            return IDs, True
         else:
             self.__parseError("Expected '{', ',' or ';', but received '"+str(self.nextToken[1])+"' for the 'get' statement")
-            return False
+            return IDs, False
 
     def __parseInput(self):
         self.__lex()
         if self.nextToken[0]==Tok.ID:
-            return self.__parseInput_Mult()
+            symbol = FuncSymbol(name=self.cur_scope.split("/")[-1], scope=self.cur_scope)
+            table_out = self.FunctionTable.lookupByScope(symbol)
+            if table_out:
+                varSym = VarSymbol(name=self.nextToken[1], type="string", scope=self.cur_scope)
+                table_out[1].define(varSym)
+                self.VarTable.define(varSym)
+            else:
+                self.__parseError("Could not find the current Scope")
+                return False
+            IDs = []
+            IDs, success = self.__parseInput_Mult(IDs)
+            for ID in IDs:
+                varSym = VarSymbol(name=ID, type="string", scope=self.cur_scope)
+                table_out[1].define(varSym)
+                self.VarTable.define(varSym)
+            return success
         else:
             self.__parseError("Expected an ID but got '"+str(self.nextToken[1])+"'")
             return False
@@ -666,9 +746,9 @@ class Parse():
     def __parseFunction_Call(self):
         self.__lex()
         if self.nextToken[0]==Tok.OPENPARENTHESIS:
-            return self.__parseParams()
+            return self.__parseCall_Params()
         else:
-            self.__parseError("Expected '(' after function name")
+            self.__parseError("If meant for a function call: Expected '(' after function name\nIf meant for assignment did not include 'int' or 'str'")
 
 
     def __parseStmt(self):
@@ -680,10 +760,46 @@ class Parse():
             return self.__parseInput()
         # assign for integer
         elif self.nextToken[0] == Tok.KEYWORD and self.nextToken[1] == "int":
-            return self.__parseAssign_Intopt()
+            ID, success = self.__parseAssign_Intopt()
+            symbol = FuncSymbol(name=self.cur_scope.split("/")[-1] , scope=self.cur_scope)
+            table_out = self.FunctionTable.lookupByScope(symbol)
+            if table_out:
+                varSym = VarSymbol(name=ID, type="integer", scope=self.cur_scope)
+                table_out[1].define(varSym)
+            else:
+                self.__parseError("Could not find the current Scope")
+                return False
+            return success
         # assign for string
         elif self.nextToken[0] == Tok.KEYWORD and self.nextToken[1] == "str":
-            return self.__parseAssign_Stropt()
+            ID, success = self.__parseAssign_Stropt()
+            scope_split = self.cur_scope.split("/")
+            for i in range(len(scope_split), 0, -1):
+                element_scope = scope_split[0:i+1]
+                scope = ""
+                for name in element_scope:
+                    scope += name
+                symbol = FuncSymbol(name=element_scope[-1], scope=scope)
+                table_out = self.FunctionTable.lookupByScope(symbol)
+                if table_out:
+                    if table_out[1].lookup(symbol.name):
+                        break
+                    else:
+
+                    varSym = VarSymbol(name=ID, type="string", scope=self.cur_scope)
+                    table_out[1].define(varSym)
+                else:
+                    self.__parseError("Could not find the current Scope")
+                    return False
+
+            table_out = self.FunctionTable.lookupFunction(self.cur_scope.split("/")[-1])
+            if table_out:
+                varSym = VarSymbol(name=ID, type="string", scope=self.cur_scope)
+                table_out[1].define(varSym)
+            else:
+                self.__parseError("Could not find the current Scope")
+                return False
+            return success
         elif self.nextToken[0] == Tok.KEYWORD and self.nextToken[1] == "if":
             return self.__parseIf()
         elif self.nextToken[0] == Tok.KEYWORD and self.nextToken[1] == "while":
@@ -691,7 +807,11 @@ class Parse():
         elif self.nextToken[0] == Tok.KEYWORD and self.nextToken[1] == "for":
             return self.__parseFor()
         elif self.nextToken[0] == Tok.KEYWORD and self.nextToken[1] == "def":
-            return self.__parseFunction_Def()
+            if self.cur_scope == "globe/main":
+                return self.__parseFunction_Def()
+            else:
+                self.__parseError("Not allowed to define a function in another function")
+                return False
         elif self.nextToken[0] == Tok.ID:
             return self.__parseFunction_Call()
         elif self.nextToken[0] == Tok.KEYWORD and (self.nextToken[1] == "end" or self.nextToken[1] == "return"
@@ -734,3 +854,6 @@ class Parse():
                         print("Parse Error: Unrecognized trailing characters")
                     else:
                         print("Valid Program")
+            else:
+                print(self.FunctionTable.table[''])
+                print("Invalid Program")

@@ -12,11 +12,22 @@ class VarSymbolTable():
 
     def define(self, symbol):
         print('Define: %s' % symbol)
-        self.table[symbol.name] = symbol
+        symbol_check = self.table.get(symbol.name)
+        if symbol_check:
+            if symbol_check.type != symbol.type:
+                print("Updating the type of "+symbol.name)
+                symbol_check.type = symbol.type
+        else:
+            self.table[symbol.name] = symbol
 
     def lookup(self, name):
         print('Var Lookup: %s' % name)
         return self.table.get(name)
+
+class LoopSymbol(Symbol):
+    def __init__(self, name, scope, step_size=None):
+        super().__init__(name=name, scope=scope)
+        self.step_size = step_size
 
 class FuncSymbol(Symbol):
     def __init__(self, name, return_type=None, scope="globe"):
@@ -34,28 +45,46 @@ class VarSymbol(Symbol):
 class FunctionSymbolTable():
     def __init__(self):
         funcSymbol = FuncSymbol("main")
-        self.table = { "globe":{"main":funcSymbol}, "globe/main":[funcSymbol, VarSymbolTable] }
+        self.table = { "globe":{"main":funcSymbol}, "globe/main":[funcSymbol, VarSymbolTable()] }
 
     def defineFunction(self, symbol):
         print("Defined "+str(symbol.name))
-        self.table[symbol.scope+"/"+symbol.name] = [symbol, VarSymbolTable]
+        self.table[symbol.scope+"/"+symbol.name] = [symbol, VarSymbolTable()]
         self.table["globe"][symbol.name]=symbol
 
     def defineLoop(self, symbol):
         print("Defined loop "+str(symbol.name))
-        self.table[symbol.scope+"/"+symbol.name] = [symbol, VarSymbolTable]
+        self.table[symbol.scope+"/"+symbol.name] = [symbol, VarSymbolTable()]
 
     def lookupFunction(self, name):
         print("looked up "+name)
         return self.table.get("globe/"+name)
 
+    def lookupSymbol(self, symbol):
+        print("looked up with symbol "+symbol.name)
+        return self.table.get(symbol.scope+"/"+symbol.name)
+
+    def lookupByScope(self, symbol):
+        print("looked up with symbol's scope " + symbol.name)
+        return self.table.get(symbol.scope)
+
     def updateType(self, symbol, type):
         funcSymb = self.table.get(symbol.scope+"/"+symbol.name)
         if funcSymb:
-            funcSymb.type = type
+            funcSymb[0].type = type
+            print("Updated "+str(symbol.name)+"'s return type to "+str(type))
             return True
         else:
             return False
+
+    def deleteEntry(self, symbol):
+        delete_me = self.table.get(symbol.scope+"/"+symbol.name)
+        if delete_me:
+            print("deleting "+symbol.name)
+            del delete_me[1]
+            del self.table[symbol.scope+"/"+symbol.name]
+        else:
+            print("Did not find the entry to delete: "+symbol.name)
 
     def getGlobe(self):
         return self.table.get("globe")
