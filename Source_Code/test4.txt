@@ -1,0 +1,12 @@
+def increment(a) begin
+	int a = a + 1;
+	return a
+end;
+
+int d = -3;
+if d != 3 then int d = 5 ;
+elif d == 3 then int d = [2];
+else int d = -1; end;
+increment(d);
+print(d);
+if d then print(d); end;

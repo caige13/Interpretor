@@ -1,0 +1,13 @@
+print("How many numbers will you input? ");
+printf("hey %s, I am %d years old.", "Sam", 10);
+get num;
+
+int i=0;
+int sum=0;
+while i < num
+do
+  int sum = sum + _x;
+end;
+
+int q = sum / num;
+int r = sum % num;
