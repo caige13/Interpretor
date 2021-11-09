@@ -14,15 +14,38 @@ class VarSymbolTable():
         print('Define: %s' % symbol)
         symbol_check = self.table.get(symbol.name)
         if symbol_check:
-            if symbol_check.type != symbol.type:
-                print("Updating the type of "+symbol.name)
-                symbol_check.type = symbol.type
+            for varSym in symbol_check:
+                if varSym.type != symbol.type:
+                    varSym.type = symbol.type
+                    return False
+                existing_name = symbol_check.scope.split("/")[-1]
+                for name in varSym.scope.split("/"):
+                    if name != "globe" and name == existing_name:
+                        break
+            else:
+                self.table[symbol.name].append(symbol)
         else:
-            self.table[symbol.name] = symbol
+            self.table[symbol.name] = [symbol]
+        return True
 
-    def lookup(self, name):
-        print('Var Lookup: %s' % name)
-        return self.table.get(name)
+    # We should do a lookup first then a lookupSameScope
+    def lookup(self, symbol):
+        print('Var Lookup: %s' % symbol.name)
+        return self.table.get(symbol.name)
+
+    # return True if there exists a pre defined ID with same name as symbol parameter within the same scope.
+    def lookupSameScope(self, symbol):
+        symbol_check = self.table.get(symbol.name)
+        if symbol_check:
+            for varSym in symbol_check:
+                existing_name = symbol_check.scope.split("/")[-1]
+                for name in varSym.scope.split("/"):
+                    if name != "globe" and name == existing_name:
+                        return True
+            else:
+                return False
+        else:
+            return False
 
 class LoopSymbol(Symbol):
     def __init__(self, name, scope, step_size=None):

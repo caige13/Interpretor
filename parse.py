@@ -774,32 +774,32 @@ class Parse():
         elif self.nextToken[0] == Tok.KEYWORD and self.nextToken[1] == "str":
             ID, success = self.__parseAssign_Stropt()
             scope_split = self.cur_scope.split("/")
-            for i in range(len(scope_split), 0, -1):
-                element_scope = scope_split[0:i+1]
-                scope = ""
-                for name in element_scope:
-                    scope += name
-                symbol = FuncSymbol(name=element_scope[-1], scope=scope)
-                table_out = self.FunctionTable.lookupByScope(symbol)
-                if table_out:
-                    if table_out[1].lookup(symbol.name):
-                        break
-                    else:
-
-                    varSym = VarSymbol(name=ID, type="string", scope=self.cur_scope)
-                    table_out[1].define(varSym)
-                else:
-                    self.__parseError("Could not find the current Scope")
-                    return False
-
-            table_out = self.FunctionTable.lookupFunction(self.cur_scope.split("/")[-1])
-            if table_out:
+            # for i in range(len(scope_split), 0, -1):
+            #     element_scope = scope_split[0:i+1]
+            #     scope = ""
+            #     for name in element_scope:
+            #         scope += name
+            #     symbol = FuncSymbol(name=element_scope[-1], scope=scope)
+            #     table_out = self.FunctionTable.lookupByScope(symbol)
+            #     if table_out:
+            #         if table_out[1].lookup(symbol.name):
+            #             break
+            #         else:
+            #
+            #         varSym = VarSymbol(name=ID, type="string", scope=self.cur_scope)
+            #         table_out[1].define(varSym)
+            #     else:
+            #         self.__parseError("Could not find the current Scope")
+            #         return False
+            if success:
                 varSym = VarSymbol(name=ID, type="string", scope=self.cur_scope)
-                table_out[1].define(varSym)
+                if not self.VarTable.define(varSym):
+                    self.__parseError("This language does not support dynamic typing. "+ID+" has been defined else where with a different type")
+                    return False
+                else:
+                    return True
             else:
-                self.__parseError("Could not find the current Scope")
-                return False
-            return success
+                return success
         elif self.nextToken[0] == Tok.KEYWORD and self.nextToken[1] == "if":
             return self.__parseIf()
         elif self.nextToken[0] == Tok.KEYWORD and self.nextToken[1] == "while":
