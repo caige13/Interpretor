@@ -1,4 +1,5 @@
 from lexer import Lexer, Tok
+from symbol_table import FunctionSymbolTable
 
 class Parse():
     def __init__(self, input):
@@ -6,6 +7,7 @@ class Parse():
         self.lexer = Lexer(input)
         # certain keyword will add and take away from scope
         self.cur_scope = "main"
+        self.FunctionTable = FunctionSymbolTable()
 
     def __parseError(self, msg, handle_semicolon=False):
         if handle_semicolon:
@@ -401,12 +403,13 @@ class Parse():
             return False
 
     def __parseIf_Options(self):
-        self.__lex()
         if self.nextToken[0] == Tok.KEYWORD and self.nextToken[1] == "end":
             return True
         elif self.nextToken[0]==Tok.KEYWORD and self.nextToken[1]=="elif":
             if self.__parseInt_Expr():
+                self.__lex()
                 if self.nextToken[0] == Tok.KEYWORD and self.nextToken[1] == "then":
+                    self.__lex()
                     if self.__parseStmt_List():
                         if self.__parseIf_Options():
                             return True
@@ -422,8 +425,8 @@ class Parse():
                 self.__parseError("Expected a Integer expression for the if condition")
                 return False
         elif self.nextToken[0]==Tok.KEYWORD and self.nextToken[1]=="else":
+            self.__lex()
             if self.__parseStmt_List():
-                self.__lex()
                 if self.nextToken[0] == Tok.KEYWORD and self.nextToken[1] == "end":
                     return True
                 else:
@@ -493,11 +496,14 @@ class Parse():
     def __parseFunction_Def(self):
         self.__lex()
         if self.nextToken[0]==Tok.ID:
+            ID = self.nextToken[1]
             self.__lex()
             if self.nextToken[0]==Tok.OPENPARENTHESIS and self.nextToken[1]=="(":
                 if self.__parseParams():
                     self.__lex()
                     if self.nextToken[0]==Tok.KEYWORD and self.nextToken[1]=="begin":
+                        self.cur_scope = ID
+
                         self.__lex()
                         if self.__parseStmt_List():
                             if self.nextToken[0] == Tok.KEYWORD and self.nextToken[1] == "end":
@@ -587,7 +593,6 @@ class Parse():
             self.__parseError("Expected a Integer expression for the while loop condition")
 
     def __parseIf(self):
-        self.__lex()
         if self.__parseInt_Expr():
             self.__lex()
             if self.nextToken[0] == Tok.KEYWORD and self.nextToken[1] == "then":
@@ -658,6 +663,14 @@ class Parse():
             self.__parseError("The statement 'print' has been called without an open parenthesis, '('.")
             return False
 
+    def __parseFunction_Call(self):
+        self.__lex()
+        if self.nextToken[0]==Tok.OPENPARENTHESIS:
+            return self.__parseParams()
+        else:
+            self.__parseError("Expected '(' after function name")
+
+
     def __parseStmt(self):
         if self.nextToken[0] == Tok.KEYWORD and self.nextToken[1] == "print":
             return self.__parsePrint()
@@ -679,9 +692,10 @@ class Parse():
             return self.__parseFor()
         elif self.nextToken[0] == Tok.KEYWORD and self.nextToken[1] == "def":
             return self.__parseFunction_Def()
-        elif self.nextToken[0] == Tok.KEYWORD and self.nextToken[1] == "end":
-            return False
-        elif self.nextToken[0] == Tok.KEYWORD and self.nextToken[1] == "return":
+        elif self.nextToken[0] == Tok.ID:
+            return self.__parseFunction_Call()
+        elif self.nextToken[0] == Tok.KEYWORD and (self.nextToken[1] == "end" or self.nextToken[1] == "return"
+                or self.nextToken[1] == "elif" or self.nextToken[1] == "else"):
             return False
         else:
             self.__parseError("The Statement Provided is not recognized")
@@ -698,9 +712,10 @@ class Parse():
             else:
                 self.__parseError("Expected a semicolon", True)
                 return False
-        elif self.nextToken[0]==Tok.KEYWORD and self.nextToken[1]=="end":
-            return True
-        elif self.nextToken[0]==Tok.KEYWORD and self.nextToken[1]=="return":
+        # stmt_list has empty string as base case which cant really be replicated in
+        # implementation so this is the work around.
+        elif self.nextToken[0]==Tok.KEYWORD and (self.nextToken[1]=="end" or self.nextToken[1] == "return" or
+                self.nextToken[1] == "elif" or self.nextToken[1] == "else"):
             return True
         else:
             return False

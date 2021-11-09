@@ -9,6 +9,7 @@
                 | <while>
                 | <for>
                 | <function-def>
+                | <function-call>
         <print> -> "print" "(" <prnt-arg> ")"
     <prnt-arg>  -> ∈
                 | <value> <prnt-expr>
@@ -44,6 +45,7 @@
                 | <str-expr> <str-arg'>
     <str-arg'>  -> ∈
                 | "," <str-expr> <str-arg'>
+<function-call> -> ID "(" <params> ")"
 <function-def>  -> "def" ID "(" <params> ")" "begin" <stmt_list> <return> "end"
         <params>-> ∈
                 | ID <params'>

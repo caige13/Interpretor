@@ -4,9 +4,9 @@ def increment(a) begin
 end;
 
 int d = -3;
-if d != 3 then d = 5 
-elif d == 3 then d = 2
-else d = -1 end;
+if d != 3 then int d = 5 ;
+elif d == 3 then int d = [2];
+else int d = -1; end;
 increment(d);
 print(d);
-if !d then print(d) end;
+if d then print(d); end;
