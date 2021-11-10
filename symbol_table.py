@@ -14,7 +14,11 @@ class VarSymbolTable():
         print('Define: %s' % symbol)
         symbol_check = self.table.get(symbol.name)
         if symbol_check:
-            if symbol_check.type != symbol.type:
+            if symbol_check.type == "undefined":
+                # This most likely means its a parameter.
+                self.table[symbol.name].type = symbol.type
+                return True
+            elif symbol_check.type != symbol.type:
                 return False
             else:
                 return True
@@ -54,8 +58,7 @@ class VarSymbolTable():
     def lookup(self, symbol):
         print('Var Lookup: %s' % symbol)
         try:
-            value = self.table.get(symbol.name)
-            return value
+            return self.table.get(symbol.name)
         except:
             return False
 
@@ -134,11 +137,56 @@ class FunctionSymbolTable():
             print("deleting "+symbol.name)
             del delete_me[1]
             del self.table[symbol.scope+"/"+symbol.name]
+            del self.table["globe"][symbol.name]
         else:
             print("Did not find the entry to delete: "+symbol.name)
 
     def getGlobe(self):
         return self.table.get("globe")
+
+    def findExistingInstance(self, symbol):
+        scope_split = symbol.scope.split("/")
+        func_symbol = FuncSymbol(name=symbol.scope.split("/")[-1], scope=symbol.scope)
+        to_define_table = self.lookupByScope(func_symbol)
+        if to_define_table:
+            for i in range(len(scope_split) - 1, 0, -1):
+                element_scope = scope_split[0:i + 1]
+                scope = ""
+                temp_scope = ""
+                for j in range(0, len(element_scope)):
+                    if j == len(element_scope) - 1:
+                        scope += element_scope[j]
+                    else:
+                        if j == len(element_scope) - 2:
+                            temp_scope += element_scope[j]
+                        else:
+                            temp_scope += element_scope[j] + "/"
+                        scope += element_scope[j] + "/"
+
+                funcSymbol = FuncSymbol(name=element_scope[-1], scope=scope)
+                table_out = self.lookupByScope(funcSymbol)
+                if table_out:
+                    try:
+                        found_var = table_out[1].lookup(symbol)
+                    except:
+                        found_var = False
+                    if found_var:
+                        if symbol.type == "neutral":
+                            return 1
+                        elif found_var.type == "undefined":
+                            # Most likely means its a parameter
+                            table_out[1].define(symbol)
+                        elif found_var.type != symbol.type:
+                            return -1
+                        return 1
+                else:
+                    print("Could not find the current Scope")
+                    return -3
+            else:
+                return 2
+        else:
+            print("Could not find the table to define "+symbol.name)
+            return -2
 
 class BuiltinTypeSymbol(Symbol):
     def __init__(self, name):

@@ -17,45 +17,7 @@ class Parse():
         self.VarTable = VarSymbolTable()
         self.for_count = 0
         self.while_count = 0
-
-    def findExistingInstance(self, symbol):
-        scope_split = symbol.scope.split("/")
-        func_symbol = FuncSymbol(name=symbol.scope.split("/")[-1], scope=symbol.scope)
-        to_define_table = self.FunctionTable.lookupByScope(func_symbol)
-        if to_define_table:
-            for i in range(len(scope_split) - 1, -1, -1):
-                element_scope = scope_split[0:i + 1]
-                scope = ""
-                temp_scope = ""
-                for j in range(0, len(element_scope)):
-                    if j == len(element_scope) - 1:
-                        scope += element_scope[j]
-                    else:
-                        if j == len(element_scope) - 2:
-                            temp_scope += element_scope[j]
-                        else:
-                            temp_scope += element_scope[j] + "/"
-                        scope += element_scope[j] + "/"
-
-                funcSymbol = FuncSymbol(name=element_scope[-1], scope=scope)
-                table_out = self.FunctionTable.lookupByScope(funcSymbol)
-                if table_out:
-                    try:
-                        found_var = table_out[1].lookup(symbol)
-                    except:
-                        found_var = False
-                    if found_var:
-                        if found_var.type != symbol.type:
-                            return -1
-                        return 1
-                else:
-                    print("Could not find the current Scope")
-                    return -3
-            else:
-                return 2
-        else:
-            print("Could not find the table to define "+symbol.name)
-            return -2
+        self.cache = -1
 
     def __parseError(self, msg, handle_semicolon=False):
         if handle_semicolon:
@@ -70,17 +32,42 @@ class Parse():
             exit()
 
     def __parseReturn_Option(self, funcSymbol):
-        if self.__parseStr_Expr():
-            return self.FunctionTable.updateType(funcSymbol, "string")
-        elif self.__parseInt_Expr():
-            return self.FunctionTable.updateType(funcSymbol, "integer")
+        self.__lex()
+        if self.nextToken[0] == Tok.KEYWORD and self.nextToken[1] == "str":
+            self.__lex()
+            if self.nextToken[0]==Tok.CLOSEPARENTHESIS:
+                if self.__parseStr_Expr():
+                    return self.FunctionTable.updateType(funcSymbol, "string")
+                else:
+                    return False
+            else:
+                self.__parseError("Expected ')' to finish return type cast")
+                return False
+        elif self.nextToken[0] == Tok.KEYWORD and self.nextToken[1] == "int":
+            self.__lex()
+            if self.nextToken[0]==Tok.CLOSEPARENTHESIS:
+                if self.__parseInt_Expr():
+                    return self.FunctionTable.updateType(funcSymbol, "integer")
+                else:
+                    return False
+            else:
+                self.__parseError("Expected ')' to finish return type cast")
+                return False
         else:
+            return False
+
+    def __parseReturn_Cast(self, funcSymbol):
+        self.__lex()
+        if self.nextToken[0]==Tok.OPENPARENTHESIS:
+            return self.__parseReturn_Option(funcSymbol)
+        else:
+            self.__parseError("Expected '(' after return to cast return type")
             return False
 
     def __parseReturn(self, funcSymbol):
         if self.nextToken[0]==Tok.KEYWORD and self.nextToken[1]=="return":
             if self.FunctionTable.updateType(funcSymbol, "true"):
-                if self.__parseReturn_Option(funcSymbol):
+                if self.__parseReturn_Cast(funcSymbol):
                     if self.nextToken[0]==Tok.LEXEME and self.nextToken[1]==";":
                         self.__parseError("There should not be a semi colon after a return statement")
                         return False
@@ -96,9 +83,9 @@ class Parse():
             self.lexer.saveToken(self.nextToken)
             return True
 
-    def __parseAmbiguous(self):
+    def __parseAmbiguous(self, type_check):
         if self.nextToken[0]==Tok.ID:
-            return self.__parseID_Operation()
+            return self.__parseID_Operation(type_check)
         else:
             return False
 
@@ -157,7 +144,7 @@ class Parse():
         elif self.nextToken[0]==Tok.ADD:
             self.__lex()
             return self.__parseInt_Value()
-        elif self.__parseAmbiguous():
+        elif self.__parseAmbiguous("integer"):
             return True
         else:
             self.__parseError("Either a int or ID is not given or there was a error and additional info has been given")
@@ -166,10 +153,10 @@ class Parse():
     def __parseNonint_Value(self):
         if self.__parseRaw_Nonint():
             return True
-        elif self.__parseAmbiguous():
+        elif self.__parseAmbiguous("string"):
             return True
         else:
-            self.__parseError("Expected either a literal String, a cast to a string, or an ID or there was a error and additional info has been given")
+            self.__parseError("Expected either a literal String, a cast to a string, or an ID(String Type) or there was a error and additional info has been given")
             return False
 
     def __parseValue(self):
@@ -177,7 +164,7 @@ class Parse():
             return True
         elif self.__parseRaw_Int():
             return True
-        elif self.__parseAmbiguous():
+        elif self.__parseAmbiguous("neutral"):
             return True
         else:
             self.__parseError(
@@ -185,30 +172,96 @@ class Parse():
                 str(self.nextToken[1]) + "'")
             return False
 
-    def __parseID_Operation(self):
+    def __parseID_Operation(self, type_check):
+        ID = self.nextToken[1]
         self.__lex()
         if self.nextToken==Tok.LEXEME and self.nextToken[1]=="[":
-            if self.__parseInt_Value():
-                self.__lex()
-                if self.nextToken[0]==Tok.LEXEME and self.nextToken[1]=="]":
-                    return True
+            varSym = VarSymbol(name=ID, type=type_check, scope=self.cur_scope)
+            exist_info = self.FunctionTable.findExistingInstance(varSym)
+            if exist_info == -3:
+                self.__parseError("Could not find the scope " + ID + " is in or a parent Scope")
+                self.lexer.saveToken(self.nextToken)
+                return False
+            elif exist_info == -2:
+                self.__parseError("Could not find the Variable table for the scope " + ID + " is in")
+                self.lexer.saveToken(self.nextToken)
+                return False
+            elif exist_info == -1:
+                self.__parseError(
+                    "This language does not support Dynamic typing, " + ID + " has been defined else where with a different type")
+                self.lexer.saveToken(self.nextToken)
+                return False
+            elif exist_info == 1:
+                if self.__parseInt_Value():
+                    self.__lex()
+                    if self.nextToken[0] == Tok.LEXEME and self.nextToken[1] == "]":
+                        return True
+                    else:
+                        self.__parseError("Expected ']' to close array access")
+                        return False
                 else:
-                    self.__parseError("Expected ']' to close array access")
                     return False
+            elif exist_info == 2:
+                # The ID has not been defined already
+                self.__parseError(ID+" has not been defined in this scope")
+                self.lexer.saveToken(self.nextToken)
+                return False
             else:
+                self.__parseError("This should not be reached at all")
+                self.lexer.saveToken(self.nextToken)
                 return False
         elif self.nextToken[0]==Tok.OPENPARENTHESIS:
-            if self.__parseCall_Params():
-                if self.nextToken[0]==Tok.CLOSEPARENTHESIS:
-                    return True
+            # This means its a function call.
+            # We must check ID in function table.
+            check_function = self.FunctionTable.lookupFunction(ID)
+            if check_function:
+                if check_function[0].type == type_check:
+                    if self.__parseCall_Params():
+                        if self.nextToken[0] == Tok.CLOSEPARENTHESIS:
+                            return True
+                        else:
+                            self.__parseError("Expected ')' to close function call")
+                            self.lexer.saveToken(self.nextToken)
+                            return False
+                    else:
+                        self.lexer.saveToken(self.nextToken)
+                        return False
                 else:
-                    self.__parseError("Expected ')' to close function call")
+                    self.__parseError(ID+" Does not return the type expected")
+                    self.lexer.saveToken(self.nextToken)
                     return False
             else:
+                self.__parseError(ID+" has not been defined")
+                self.lexer.saveToken(self.nextToken)
                 return False
         else:
-            self.lexer.saveToken(self.nextToken)
-            return True
+            varSym = VarSymbol(name=ID, type=type_check, scope=self.cur_scope)
+            exist_info = self.FunctionTable.findExistingInstance(varSym)
+            if exist_info == -3:
+                self.__parseError("Could not find the scope " + ID + " is in or a parent Scope")
+                self.lexer.saveToken(self.nextToken)
+                return False
+            elif exist_info == -2:
+                self.__parseError("Could not find the Variable table for the scope " + ID + " is in")
+                self.lexer.saveToken(self.nextToken)
+                return False
+            elif exist_info == -1:
+                self.__parseError(
+                    "This language does not support Dynamic typing, " + ID + " has been defined else where with a different type")
+                self.lexer.saveToken(self.nextToken)
+                return False
+            elif exist_info == 1:
+                self.lexer.saveToken(self.nextToken)
+                return True
+            elif exist_info == 2:
+                # The ID has not been defined already
+                self.__parseError(ID + " has not been defined in this scope")
+                self.lexer.saveToken(self.nextToken)
+                return False
+            else:
+                self.__parseError("This should not be reached at all")
+                self.lexer.saveToken(self.nextToken)
+                return False
 
     def __parseFactor(self):
         if self.__parseInt_Value():
@@ -319,6 +372,7 @@ class Parse():
             if self.__parseStr_Operation():
                 return True
             else:
+                # Will pop up on return option potentially
                 self.__parseError("Expected a string operation but received '"+str(self.nextToken[1])+"'")
                 return False
         else:
@@ -341,7 +395,7 @@ class Parse():
 
     def __parseCall_Params(self):
         self.__lex()
-        if self.nextToken[0] == Tok.LEXEME and self.nextToken[1] == ")":
+        if self.nextToken[0] == Tok.CLOSEPARENTHESIS and self.nextToken[1] == ")":
             return True
         elif self.__parseValue():
             return self.__parseCall_ParamsMult()
@@ -357,6 +411,13 @@ class Parse():
         elif self.nextToken[0]==Tok.LEXEME and self.nextToken[1]==",":
             self.__lex()
             if self.nextToken[0]==Tok.ID:
+                ID = self.nextToken[1]
+                # This strategy works rather than having to search its scope ancestors because I designed the language
+                # To only allow function to be made in a scope one below the global scope. Hence nested scopes not allowed.
+                varSym = VarSymbol(name=ID, type="undefined", scope=self.cur_scope)
+                funcSym = FuncSymbol(name=self.cur_scope.split("/")[-1], scope=self.cur_scope)
+                out_table = self.FunctionTable.lookupByScope(funcSym)
+                out_table[1].define(varSym)
                 return self.__parseParamsMult()
             else:
                 self.__parseError("Expected an ID but received '"+str(self.nextToken[1])+"'")
@@ -367,9 +428,16 @@ class Parse():
 
     def __parseParams(self):
         self.__lex()
-        if self.nextToken[0] == Tok.LEXEME and self.nextToken[1] == ")":
+        if self.nextToken[0] == Tok.CLOSEPARENTHESIS and self.nextToken[1] == ")":
             return True
         elif self.nextToken[0]==Tok.ID:
+            ID = self.nextToken[1]
+            # This strategy works rather than having to search its scope ancestors because I designed the language
+            # To only allow function to be made in a scope one below the global scope. Hence nested scopes not allowed.
+            varSym = VarSymbol(name=ID, type="undefined", scope=self.cur_scope)
+            funcSym = FuncSymbol(name=self.cur_scope.split("/")[-1], scope=self.cur_scope)
+            out_table = self.FunctionTable.lookupByScope(funcSym)
+            out_table[1].define(varSym)
             return self.__parseParamsMult()
         else:
             self.__parseError("Expected ')' or ID as parameters")
@@ -443,6 +511,7 @@ class Parse():
                     return [ID, True]
                 else:
                     self.__parseError("Expected Array Assignment or string expression, but got '" + str(self.nextToken[1]) + "'")
+                    return [ID, False]
             else:
                 self.__parseError("Expected '=' sign in assignment statement")
                 return [ID, False]
@@ -574,15 +643,15 @@ class Parse():
         self.__lex()
         if self.nextToken[0]==Tok.ID:
             ID = self.nextToken[1]
+            self.scope_stack.append(self.cur_scope)
+            self.cur_scope = "globe/" + ID
+            funcSymbol = FuncSymbol(ID)
+            self.FunctionTable.defineFunction(funcSymbol)
             self.__lex()
             if self.nextToken[0]==Tok.OPENPARENTHESIS and self.nextToken[1]=="(":
                 if self.__parseParams():
                     self.__lex()
                     if self.nextToken[0]==Tok.KEYWORD and self.nextToken[1]=="begin":
-                        self.scope_stack.append(self.cur_scope)
-                        self.cur_scope = "globe/"+ID
-                        funcSymbol = FuncSymbol(ID)
-                        self.FunctionTable.defineFunction(funcSymbol)
                         self.__lex()
                         if self.__parseStmt_List():
                             if self.nextToken[0] == Tok.KEYWORD and self.nextToken[1] == "end":
@@ -746,21 +815,42 @@ class Parse():
     def __parseInput(self):
         self.__lex()
         if self.nextToken[0]==Tok.ID:
-            symbol = FuncSymbol(name=self.cur_scope.split("/")[-1], scope=self.cur_scope)
-            table_out = self.FunctionTable.lookupByScope(symbol)
-            if table_out:
-                varSym = VarSymbol(name=self.nextToken[1], type="string", scope=self.cur_scope)
-                table_out[1].define(varSym)
-                self.VarTable.define(varSym)
-            else:
-                self.__parseError("Could not find the current Scope")
+            ID = self.nextToken[1]
+            varSym = VarSymbol(name=ID, type="string", scope=self.cur_scope)
+            exist_info = self.FunctionTable.findExistingInstance(varSym)
+            if exist_info == -3:
+                self.__parseError("Could not find the scope " + ID + " is in or a parent Scope")
                 return False
+            elif exist_info == -2:
+                self.__parseError("Could not find the Variable table to define " + ID + " in")
+                return False
+            elif exist_info == -1:
+                self.__parseError(
+                    "This language does not support Dynamic typing, " + ID + " has been defined else where with a different type")
+                return False
+            elif exist_info == 2:
+                # The ID has not been defined already
+                table_out = self.FunctionTable.lookupByScope(varSym)
+                table_out[1].define(varSym)
             IDs = []
             IDs, success = self.__parseInput_Mult(IDs)
             for ID in IDs:
                 varSym = VarSymbol(name=ID, type="string", scope=self.cur_scope)
-                table_out[1].define(varSym)
-                self.VarTable.define(varSym)
+                exist_info = self.FunctionTable.findExistingInstance(varSym)
+                if exist_info == -3:
+                    self.__parseError("Could not find the scope " + ID + " is in or a parent Scope")
+                    return False
+                elif exist_info == -2:
+                    self.__parseError("Could not find the Variable table to define " + ID + " in")
+                    return False
+                elif exist_info == -1:
+                    self.__parseError(
+                        "This language does not support Dynamic typing, " + ID + " has been defined else where with a different type")
+                    return False
+                elif exist_info == 2:
+                    # The ID has not been defined already
+                    table_out = self.FunctionTable.lookupByScope(varSym)
+                    table_out[1].define(varSym)
             return success
         else:
             self.__parseError("Expected an ID but got '"+str(self.nextToken[1])+"'")
@@ -802,7 +892,7 @@ class Parse():
             ID, success = self.__parseAssign_Intopt()
             if success:
                 varSym = VarSymbol(name=ID, type="integer", scope=self.cur_scope)
-                exist_info = self.findExistingInstance(varSym)
+                exist_info = self.FunctionTable.findExistingInstance(varSym)
                 if exist_info == -3:
                     self.__parseError("Could not find the scope " + ID + " is in or a parent Scope")
                     return False
@@ -840,7 +930,7 @@ class Parse():
             ID, success = self.__parseAssign_Stropt()
             if success:
                 varSym = VarSymbol(name=ID, type="string", scope=self.cur_scope)
-                exist_info = self.findExistingInstance(varSym)
+                exist_info = self.FunctionTable.findExistingInstance(varSym)
                 if exist_info == -3:
                     self.__parseError("Could not find the scope "+ID+" is in or a parent Scope")
                     return False
@@ -928,5 +1018,4 @@ class Parse():
                     else:
                         print("Valid Program")
             else:
-                print(self.FunctionTable)
                 print("Invalid Program")

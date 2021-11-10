@@ -1,0 +1,7 @@
+def function1() begin
+	int a = 5;
+	return (int) a
+end;
+
+int a = function1();
+int j = function1();
