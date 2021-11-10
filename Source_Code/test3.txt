@@ -1,5 +1,5 @@
 def name1(a, b, c) begin
-	int a = b+c;
+	str a = b+c;
 	print(a);
 	return a
 end;
@@ -12,8 +12,8 @@ for int i=0; i<10; i +1 do
 	end;
 end;
 
-int abc =2
-if d = 3 then str abc = "Hi"
+int abc =2;
+if d == 3 then int abc = 2; end;
 print("In this file I will throw a error");
 printf("hello %s", "name");
 int d = +3;
@@ -21,7 +21,7 @@ int y = -3;
 int f = name1(d, y, 3);
 int a = [3, 4 ,5];
 int a = [];
-str a = "hi";
+str c = "hi";
 str b = a+"strange";
 while d != 0 do
 	print(a[1]);

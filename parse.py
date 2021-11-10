@@ -18,6 +18,45 @@ class Parse():
         self.for_count = 0
         self.while_count = 0
 
+    def findExistingInstance(self, symbol):
+        scope_split = symbol.scope.split("/")
+        func_symbol = FuncSymbol(name=symbol.scope.split("/")[-1], scope=symbol.scope)
+        to_define_table = self.FunctionTable.lookupByScope(func_symbol)
+        if to_define_table:
+            for i in range(len(scope_split) - 1, -1, -1):
+                element_scope = scope_split[0:i + 1]
+                scope = ""
+                temp_scope = ""
+                for j in range(0, len(element_scope)):
+                    if j == len(element_scope) - 1:
+                        scope += element_scope[j]
+                    else:
+                        if j == len(element_scope) - 2:
+                            temp_scope += element_scope[j]
+                        else:
+                            temp_scope += element_scope[j] + "/"
+                        scope += element_scope[j] + "/"
+
+                funcSymbol = FuncSymbol(name=element_scope[-1], scope=scope)
+                table_out = self.FunctionTable.lookupByScope(funcSymbol)
+                if table_out:
+                    try:
+                        found_var = table_out[1].lookup(symbol)
+                    except:
+                        found_var = False
+                    if found_var:
+                        if found_var.type != symbol.type:
+                            return -1
+                        return 1
+                else:
+                    print("Could not find the current Scope")
+                    return -3
+            else:
+                return 2
+        else:
+            print("Could not find the table to define "+symbol.name)
+            return -2
+
     def __parseError(self, msg, handle_semicolon=False):
         if handle_semicolon:
             print("Parse Error: " + msg + " at line " + str(self.lexer.line-1))
@@ -761,45 +800,79 @@ class Parse():
         # assign for integer
         elif self.nextToken[0] == Tok.KEYWORD and self.nextToken[1] == "int":
             ID, success = self.__parseAssign_Intopt()
-            symbol = FuncSymbol(name=self.cur_scope.split("/")[-1] , scope=self.cur_scope)
-            table_out = self.FunctionTable.lookupByScope(symbol)
-            if table_out:
+            if success:
                 varSym = VarSymbol(name=ID, type="integer", scope=self.cur_scope)
-                table_out[1].define(varSym)
+                exist_info = self.findExistingInstance(varSym)
+                if exist_info == -3:
+                    self.__parseError("Could not find the scope " + ID + " is in or a parent Scope")
+                    return False
+                elif exist_info == -2:
+                    self.__parseError("Could not find the Variable table to define " + ID + " in")
+                    return False
+                elif exist_info == -1:
+                    self.__parseError(
+                        "This language does not support Dynamic typing, " + ID + " has been defined else where with a different type")
+                    return False
+                elif exist_info == 1:
+                    # the ID has been defined already same type
+                    return True
+                elif exist_info == 2:
+                    # The ID has not been defined already
+                    table_out = self.FunctionTable.lookupByScope(varSym)
+                    table_out[1].define(varSym)
+                    return True
+                else:
+                    self.__parseError("This should not be reached at all")
+                    return False
             else:
-                self.__parseError("Could not find the current Scope")
-                return False
-            return success
+                return success
+            # if success:
+            #     varSym = VarSymbol(name=ID, type="integer", scope=self.cur_scope)
+            #     if not self.VarTable.define(varSym):
+            #         self.__parseError("This language does not support dynamic typing. "+ID+" has been defined else where with a different type")
+            #         return False
+            #     else:
+            #         return True
+            # else:
+            #     return success
         # assign for string
         elif self.nextToken[0] == Tok.KEYWORD and self.nextToken[1] == "str":
             ID, success = self.__parseAssign_Stropt()
-            scope_split = self.cur_scope.split("/")
-            # for i in range(len(scope_split), 0, -1):
-            #     element_scope = scope_split[0:i+1]
-            #     scope = ""
-            #     for name in element_scope:
-            #         scope += name
-            #     symbol = FuncSymbol(name=element_scope[-1], scope=scope)
-            #     table_out = self.FunctionTable.lookupByScope(symbol)
-            #     if table_out:
-            #         if table_out[1].lookup(symbol.name):
-            #             break
-            #         else:
-            #
-            #         varSym = VarSymbol(name=ID, type="string", scope=self.cur_scope)
-            #         table_out[1].define(varSym)
-            #     else:
-            #         self.__parseError("Could not find the current Scope")
-            #         return False
             if success:
                 varSym = VarSymbol(name=ID, type="string", scope=self.cur_scope)
-                if not self.VarTable.define(varSym):
-                    self.__parseError("This language does not support dynamic typing. "+ID+" has been defined else where with a different type")
+                exist_info = self.findExistingInstance(varSym)
+                if exist_info == -3:
+                    self.__parseError("Could not find the scope "+ID+" is in or a parent Scope")
                     return False
-                else:
+                elif exist_info == -2:
+                    self.__parseError("Could not find the Variable table to define "+ID+" in")
+                    return False
+                elif exist_info == -1:
+                    self.__parseError("This language does not support Dynamic typing, "+ID+" has been defined else where with a different type")
+                    return False
+                elif exist_info == 1:
+                    # the ID has been defined already same type
                     return True
+                elif exist_info == 2:
+                    # The ID has not been defined already
+                    table_out = self.FunctionTable.lookupByScope(varSym)
+
+                    table_out[1].define(varSym)
+                    return True
+                else:
+                    self.__parseError("This should not be reached at all")
+                    return False
             else:
                 return success
+            # if success:
+            #     varSym = VarSymbol(name=ID, type="string", scope=self.cur_scope)
+            #     if not self.VarTable.define(varSym):
+            #         self.__parseError("This language does not support dynamic typing. "+ID+" has been defined else where with a different type")
+            #         return False
+            #     else:
+            #         return True
+            # else:
+            #     return success
         elif self.nextToken[0] == Tok.KEYWORD and self.nextToken[1] == "if":
             return self.__parseIf()
         elif self.nextToken[0] == Tok.KEYWORD and self.nextToken[1] == "while":
@@ -855,5 +928,5 @@ class Parse():
                     else:
                         print("Valid Program")
             else:
-                print(self.FunctionTable.table[''])
+                print(self.FunctionTable)
                 print("Invalid Program")

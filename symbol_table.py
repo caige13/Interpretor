@@ -14,38 +14,64 @@ class VarSymbolTable():
         print('Define: %s' % symbol)
         symbol_check = self.table.get(symbol.name)
         if symbol_check:
-            for varSym in symbol_check:
-                if varSym.type != symbol.type:
-                    varSym.type = symbol.type
-                    return False
-                existing_name = symbol_check.scope.split("/")[-1]
-                for name in varSym.scope.split("/"):
-                    if name != "globe" and name == existing_name:
-                        break
+            if symbol_check.type != symbol.type:
+                return False
             else:
-                self.table[symbol.name].append(symbol)
+                return True
+            # for varSym in symbol_check:
+            #     if varSym.type != symbol.type:
+            #         varSym.type = symbol.type
+            #         return False
+            #     existing_name = varSym.scope.split("/")[-1]
+            #     for name in varSym.scope.split("/"):
+            #         if name != "globe" and name == existing_name:
+            #             break
+            # else:
+            #     self.table[symbol.name].append(symbol)
         else:
-            self.table[symbol.name] = [symbol]
+            self.table[symbol.name] = symbol
         return True
+
+    def delteEntry(self, symbol):
+        print("deleting variable " +symbol.name)
+        symbol_check = self.table.get(symbol.name)
+        if symbol_check:
+            del self.table[symbol.name]
+            # for varSym in symbol_check:
+            #     if varSym.scope == symbol.scope:
+            #         symbol_check.remove(varSym)
+            #         if len(symbol_check) == 0:
+            #             del self.table[symbol.name]
+            #         return True
+            # else:
+            #     print("Could not find the variable with same name and scope.")
+            #     return False
+        else:
+            print("Could not find entries for the given symbol: "+symbol.name)
+            return False
 
     # We should do a lookup first then a lookupSameScope
     def lookup(self, symbol):
-        print('Var Lookup: %s' % symbol.name)
-        return self.table.get(symbol.name)
+        print('Var Lookup: %s' % symbol)
+        try:
+            value = self.table.get(symbol.name)
+            return value
+        except:
+            return False
 
     # return True if there exists a pre defined ID with same name as symbol parameter within the same scope.
-    def lookupSameScope(self, symbol):
-        symbol_check = self.table.get(symbol.name)
-        if symbol_check:
-            for varSym in symbol_check:
-                existing_name = symbol_check.scope.split("/")[-1]
-                for name in varSym.scope.split("/"):
-                    if name != "globe" and name == existing_name:
-                        return True
-            else:
-                return False
-        else:
-            return False
+    # def lookupSameScope(self, symbol):
+    #     symbol_check = self.table.get(symbol.name)
+    #     if symbol_check:
+    #         for varSym in symbol_check:
+    #             existing_name = symbol_check.scope.split("/")[-1]
+    #             for name in varSym.scope.split("/"):
+    #                 if name != "globe" and name == existing_name:
+    #                     return True
+    #         else:
+    #             return False
+    #     else:
+    #         return False
 
 class LoopSymbol(Symbol):
     def __init__(self, name, scope, step_size=None):
@@ -90,6 +116,8 @@ class FunctionSymbolTable():
     def lookupByScope(self, symbol):
         print("looked up with symbol's scope " + symbol.name)
         return self.table.get(symbol.scope)
+
+    # Given var symbol with self.cur_scope
 
     def updateType(self, symbol, type):
         funcSymb = self.table.get(symbol.scope+"/"+symbol.name)
