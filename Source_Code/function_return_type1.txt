@@ -3,5 +3,5 @@ def function1() begin
 	return (int) a
 end;
 
-int a = function1();
 int j = function1();
+int a = function1();

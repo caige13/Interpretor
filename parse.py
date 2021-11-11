@@ -1,23 +1,29 @@
 from lexer import Lexer, Tok
-from symbol_table import FunctionSymbolTable, FuncSymbol, VarSymbol, LoopSymbol, VarSymbolTable
+from symbol_table import FunctionSymbolTable, FuncSymbol, VarSymbol, LoopSymbol
 
 
-# NOTES: Potentially dont have to track variables in the Function Table but instead in a seperate Var Table.
-# Every time you do a definition in the Var Table must check if the varaible already exists and if it does, we care
-# about the scope and the type. Potential easy solution is to just not allow dynamic typing and variable cannot change
-# Type. To do this when you realize a confliction check the types, if different error, if not then do something.
 class Parse():
     def __init__(self, input):
+        # used to store token
         self.nextToken = []
+
+        #Lexer used to get tokens.
         self.lexer = Lexer(input)
-        # certain keyword will add and take away from scope
+
+        # Keep track of the current scope
         self.cur_scope = "globe/main"
+
+        # Stack to store a scope to previously return to.
         self.scope_stack = []
+
+        # The main Symbol table used
         self.FunctionTable = FunctionSymbolTable()
-        self.VarTable = VarSymbolTable()
+
+        # Counts the for loops to give then unique names.
         self.for_count = 0
+
+        #count the while loops to give them unique names.
         self.while_count = 0
-        self.cache = -1
 
     def __parseError(self, msg, handle_semicolon=False):
         if handle_semicolon:
@@ -180,16 +186,13 @@ class Parse():
             exist_info = self.FunctionTable.findExistingInstance(varSym)
             if exist_info == -3:
                 self.__parseError("Could not find the scope " + ID + " is in or a parent Scope")
-                self.lexer.saveToken(self.nextToken)
                 return False
             elif exist_info == -2:
                 self.__parseError("Could not find the Variable table for the scope " + ID + " is in")
-                self.lexer.saveToken(self.nextToken)
                 return False
             elif exist_info == -1:
                 self.__parseError(
                     "This language does not support Dynamic typing, " + ID + " has been defined else where with a different type")
-                self.lexer.saveToken(self.nextToken)
                 return False
             elif exist_info == 1:
                 if self.__parseInt_Value():
@@ -204,11 +207,9 @@ class Parse():
             elif exist_info == 2:
                 # The ID has not been defined already
                 self.__parseError(ID+" has not been defined in this scope")
-                self.lexer.saveToken(self.nextToken)
                 return False
             else:
                 self.__parseError("This should not be reached at all")
-                self.lexer.saveToken(self.nextToken)
                 return False
         elif self.nextToken[0]==Tok.OPENPARENTHESIS:
             # This means its a function call.
@@ -239,16 +240,13 @@ class Parse():
             exist_info = self.FunctionTable.findExistingInstance(varSym)
             if exist_info == -3:
                 self.__parseError("Could not find the scope " + ID + " is in or a parent Scope")
-                self.lexer.saveToken(self.nextToken)
                 return False
             elif exist_info == -2:
                 self.__parseError("Could not find the Variable table for the scope " + ID + " is in")
-                self.lexer.saveToken(self.nextToken)
                 return False
             elif exist_info == -1:
                 self.__parseError(
                     "This language does not support Dynamic typing, " + ID + " has been defined else where with a different type")
-                self.lexer.saveToken(self.nextToken)
                 return False
             elif exist_info == 1:
                 self.lexer.saveToken(self.nextToken)
@@ -256,11 +254,9 @@ class Parse():
             elif exist_info == 2:
                 # The ID has not been defined already
                 self.__parseError(ID + " has not been defined in this scope")
-                self.lexer.saveToken(self.nextToken)
                 return False
             else:
                 self.__parseError("This should not be reached at all")
-                self.lexer.saveToken(self.nextToken)
                 return False
 
     def __parseFactor(self):
@@ -691,7 +687,6 @@ class Parse():
             table_out = self.FunctionTable.lookupSymbol(forSymbol)
             ID, success = self.__parseAssign_Intopt()
             varSym = VarSymbol(name=ID, type="integer", scope=self.cur_scope)
-            self.VarTable.define(varSym)
             table_out[1].define(varSym) # Choice made to not check if ID defined in prev. scopes to
                                         # default the loop counter to this Variable.
             if success:
@@ -916,15 +911,6 @@ class Parse():
                     return False
             else:
                 return success
-            # if success:
-            #     varSym = VarSymbol(name=ID, type="integer", scope=self.cur_scope)
-            #     if not self.VarTable.define(varSym):
-            #         self.__parseError("This language does not support dynamic typing. "+ID+" has been defined else where with a different type")
-            #         return False
-            #     else:
-            #         return True
-            # else:
-            #     return success
         # assign for string
         elif self.nextToken[0] == Tok.KEYWORD and self.nextToken[1] == "str":
             ID, success = self.__parseAssign_Stropt()
@@ -954,15 +940,6 @@ class Parse():
                     return False
             else:
                 return success
-            # if success:
-            #     varSym = VarSymbol(name=ID, type="string", scope=self.cur_scope)
-            #     if not self.VarTable.define(varSym):
-            #         self.__parseError("This language does not support dynamic typing. "+ID+" has been defined else where with a different type")
-            #         return False
-            #     else:
-            #         return True
-            # else:
-            #     return success
         elif self.nextToken[0] == Tok.KEYWORD and self.nextToken[1] == "if":
             return self.__parseIf()
         elif self.nextToken[0] == Tok.KEYWORD and self.nextToken[1] == "while":

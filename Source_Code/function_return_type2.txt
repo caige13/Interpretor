@@ -3,5 +3,6 @@ def function1() begin
 	return (int) a
 end;
 
-str a = function1();
 int j = function1();
+str a = "hi";
+str a = function1();

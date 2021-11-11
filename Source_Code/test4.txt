@@ -6,7 +6,8 @@ end;
 int d = -3;
 if d != 3 then int d = 5 ;
 elif d == 3 then int d = [2];
-else int d = -1; end;
+else 
+	int d = -1; end;
 int j = increment(d);
 print(d);
 if d then print(d); end;

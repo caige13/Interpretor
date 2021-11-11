@@ -1,4 +1,4 @@
 int a = 2;
 str b = "hi";
 int z = a+ int(b);
-str b = 2
+str b = 2;
