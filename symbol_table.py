@@ -19,11 +19,13 @@ class VarSymbolTable():
         return self.table.get(name)
 
 class FuncSymbol(Symbol):
-    def __init__(self, name, return_type=None, scope="globe"):
+    def __init__(self, name, return_type=None, scope="globe", body=None):
+        self.body = body
         super().__init__(name=name,type=return_type, scope=scope)
 
 class VarSymbol(Symbol):
-    def __init__(self, name, type, scope):
+    def __init__(self, name, type, scope, value=None):
+        self.value = value
         super().__init__(name, type, scope)
 
     def __str__(self):
