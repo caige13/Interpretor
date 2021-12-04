@@ -46,6 +46,10 @@
     <str-arg'>  -> ∈
                 | "," <str-expr> <str-arg'>
 <function-call> -> ID "(" <params> ")"
+<call-params>   -> ∈
+                | <value> <params'>
+<call-params'>  -> ∈
+                | "," <value> <params'>
 <function-def>  -> "def" ID "(" <params> ")" "begin" <stmt_list> <return> "end"
         <params>-> ∈
                 | ID <params'>
@@ -95,5 +99,6 @@
     <ambiguous> -> ID <ID-operation>
         <return>-> ∈
                 | "return" <return-option>
-<return-option> -> <str-expr>
-                | <int-expr>
+<return-cast>   -> "(" <return-option>
+<return-option  -> "str" ")" <str-expr>
+                | "int" ")" <int-expr>

@@ -4,10 +4,11 @@ get num;
 
 int i=0;
 int sum=0;
-while i < num
+int x = 0;
+while i < int(num)
 do
-  int sum = sum + _x;
+  int sum = sum + x;
 end;
 
-int q = sum / num;
-int r = sum % num;
+int q = sum / int(num);
+int r = sum % 6;

@@ -1,5 +1,6 @@
 def functionName(a, b, c) begin
 	print("hello");
+	printf("%s", a);
 	int d = -3;
 
 while d < 3 
@@ -8,3 +9,4 @@ do
 end;
 print(d);
 end;
+`
