@@ -1,0 +1,3 @@
+str StringTest = "123";
+str idTest = StringTest;
+print("hello"+" World"+str(1));

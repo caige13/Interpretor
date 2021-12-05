@@ -8,6 +8,8 @@ class Parse():
         # certain keyword will add and take away from scope
         self.cur_scope = "main"
         self.FunctionTable = FunctionSymbolTable()
+        self.cmd_list = []
+        self.cmdLoc = -1
 
     def __parseError(self, msg, handle_semicolon=False):
         if handle_semicolon:
@@ -44,16 +46,20 @@ class Parse():
             self.lexer.saveToken(self.nextToken)
             return True
 
-    def __parseAmbiguous(self):
+    def __parseAmbiguous(self, sign=""):
         if self.nextToken[0]==Tok.ID:
-            return self.__parseID_Operation()
+            ID = self.nextToken[1]
+            return self.__parseID_Operation(ID, sign)
         else:
             return False
 
     def __parseRaw_Nonint(self):
         if self.nextToken[0]==Tok.STRING:
+            self.cmd_list[self.cmdLoc].append(self.nextToken[1])
             return True
         elif self.nextToken[0]==Tok.KEYWORD and self.nextToken[1]=="str":
+            # The 1 will make it easy to identify that it is not an ID
+            self.cmd_list[self.cmdLoc].append("1strCast")
             self.__lex()
             if self.nextToken[0]==Tok.OPENPARENTHESIS:
                 self.__lex()
@@ -73,16 +79,24 @@ class Parse():
         else:
             return False
 
-    def __parseRaw_Int(self):
+    def __parseRaw_Int(self, sign=""):
         if self.nextToken[0]==Tok.INT:
+            if sign == "neg":
+                sign = "-"
+            elif sign == "pos":
+                sign = "+"
+            self.cmd_list[self.cmdLoc].append(sign+str(self.nextToken[1]))
             return True
-        elif self.nextToken[0]==Tok.KEYWORD and self.nextToken[1]=="int":
+        elif self.nextToken[0] == Tok.KEYWORD and self.nextToken[1] == "int":
+            self.cmd_list[self.cmdLoc].append("1intCast")
+            if sign != "":
+                self.cmd_list[self.cmdLoc].append(sign)
             self.__lex()
-            if self.nextToken[0]==Tok.OPENPARENTHESIS:
+            if self.nextToken[0] == Tok.OPENPARENTHESIS:
                 self.__lex()
                 if self.__parseValue():
                     self.__lex()
-                    if self.nextToken[0]==Tok.CLOSEPARENTHESIS:
+                    if self.nextToken[0] == Tok.CLOSEPARENTHESIS:
                         return True
                     else:
                         self.__parseError("Expected ')' to end casting statement to an int")
@@ -96,16 +110,16 @@ class Parse():
         else:
             return False
 
-    def __parseInt_Value(self):
-        if self.__parseRaw_Int():
+    def __parseInt_Value(self, sign=""):
+        if self.__parseRaw_Int(sign):
             return True
         elif self.nextToken[0]==Tok.SUBTRACT:
             self.__lex()
-            return self.__parseInt_Value()
+            return self.__parseInt_Value("neg")
         elif self.nextToken[0]==Tok.ADD:
             self.__lex()
-            return self.__parseInt_Value()
-        elif self.__parseAmbiguous():
+            return self.__parseInt_Value("pos")
+        elif self.__parseAmbiguous(sign):
             return True
         else:
             self.__parseError("Either a int or ID is not given or there was a error and additional info has been given")
@@ -133,9 +147,11 @@ class Parse():
                 str(self.nextToken[1]) + "'")
             return False
 
-    def __parseID_Operation(self):
+    def __parseID_Operation(self, ID, sign=""):
         self.__lex()
         if self.nextToken==Tok.LEXEME and self.nextToken[1]=="[":
+            self.cmd_list[self.cmdLoc].append("1ArrayID")
+            self.cmd_list[self.cmdLoc].append(ID)
             if self.__parseInt_Value():
                 self.__lex()
                 if self.nextToken[0]==Tok.LEXEME and self.nextToken[1]=="]":
@@ -146,6 +162,8 @@ class Parse():
             else:
                 return False
         elif self.nextToken[0]==Tok.OPENPARENTHESIS:
+            self.cmd_list[self.cmdLoc].append("1functionID")
+            self.cmd_list[self.cmdLoc].append(ID)
             if self.__parseParams():
                 self.__lex()
                 if self.nextToken[0]==Tok.CLOSEPARENTHESIS:
@@ -156,6 +174,10 @@ class Parse():
             else:
                 return False
         else:
+            self.cmd_list[self.cmdLoc].append("1regID")
+            if sign != "":
+                self.cmd_list[self.cmdLoc].append(sign)
+            self.cmd_list[self.cmdLoc].append(ID)
             self.lexer.saveToken(self.nextToken)
             return True
 
@@ -223,13 +245,16 @@ class Parse():
         self.__lex()
         return self.__parseNonint_Value()
 
-    def __parseStr_Operation(self):
+    def __parseStr_Operation(self, save=False):
+        if save:
+            self.lexer.saveToken(self.nextToken)
         self.__lex()
         if self.nextToken[0]==Tok.ADD:
             if self.__parseStr_OperationMult():
                 return self.__parseStr_Operation()
             else:
                 self.__parseError("Expected a String to concat with")
+                return False
         else:
             self.lexer.saveToken(self.nextToken)
             return True
@@ -303,6 +328,7 @@ class Parse():
     # Mult is used instead of ' if you are doing a direct comparison to the grammar.
     def __parseStr_ArgMult(self):
         if self.nextToken[0] == Tok.LEXEME and self.nextToken[1] == "]":
+            self.cmd_list[self.cmdLoc].append("]")
             return True
         self.__lex()
         if self.nextToken[0] == Tok.LEXEME and self.nextToken[1] == ",":
@@ -314,6 +340,7 @@ class Parse():
 
     def __parseStr_Arg(self):
         if self.nextToken[0] == Tok.LEXEME and self.nextToken[1] == "]":
+            self.cmd_list[self.cmdLoc].append("]")
             return True
         elif self.__parseStr_Expr():
             return self.__parseStr_ArgMult()
@@ -350,10 +377,12 @@ class Parse():
     def __parseAssign_Stropt(self):
         self.__lex()
         if self.nextToken[0] == Tok.ID:
+            self.cmd_list[self.cmdLoc].append(self.nextToken[1])
             self.__lex()
             if self.nextToken[0] == Tok.LEXEME and self.nextToken[1] == "=":
                 self.__lex()
                 if self.nextToken[0] == Tok.LEXEME and self.nextToken[1] == "[":
+                    self.cmd_list[self.cmdLoc].append("[")
                     if self.__parseStr_Arg():
                         if self.lexer.tokenSaved != -1:
                             self.__lex()
@@ -472,12 +501,13 @@ class Parse():
     def __parsePrnt_Expr(self):
         self.__lex()
         if self.nextToken[0]==Tok.CLOSEPARENTHESIS:
+            self.cmd_list[self.cmdLoc].append("\n")
             return True
         elif self.nextToken[0]==Tok.LEXEME and self.nextToken[1]==",":
             self.__lex()
             if self.__parseValue():
                 return self.__parsePrnt_Expr()
-        elif self.__parseStr_Operation():
+        elif self.__parseStr_Operation(True):
             return self.__parsePrnt_Expr()
         else:
             self.__parseError("Invalid Source Code: "+str(self.nextToken[1])+"'")
@@ -486,6 +516,7 @@ class Parse():
     def __parsePrnt_Arg(self):
         self.__lex()
         if self.nextToken[0] == Tok.CLOSEPARENTHESIS:
+            self.cmd_list[self.cmdLoc].append("\n")
             return True
         elif self.__parseValue():
             return self.__parsePrnt_Expr()
@@ -673,6 +704,8 @@ class Parse():
 
     def __parseStmt(self):
         if self.nextToken[0] == Tok.KEYWORD and self.nextToken[1] == "print":
+            self.cmdLoc += 1
+            self.cmd_list.append(["print", self.cur_scope])
             return self.__parsePrint()
         elif self.nextToken[0] == Tok.KEYWORD and self.nextToken[1] == "printf":
             return self.__parsePrintf()
@@ -683,6 +716,8 @@ class Parse():
             return self.__parseAssign_Intopt()
         # assign for string
         elif self.nextToken[0] == Tok.KEYWORD and self.nextToken[1] == "str":
+            self.cmdLoc += 1
+            self.cmd_list.append(["strAssign", self.cur_scope])
             return self.__parseAssign_Stropt()
         elif self.nextToken[0] == Tok.KEYWORD and self.nextToken[1] == "if":
             return self.__parseIf()
@@ -728,9 +763,15 @@ class Parse():
 
         if self.nextToken[0] == Tok.ERROR:
             print("Lex Error: ", self.nextToken[1])
+            return False
         else:
             if self.__parseProg():
-                    if self.nextToken[0] != Tok.END_OF_INPUT:
-                        print("Parse Error: Unrecognized trailing characters")
-                    else:
-                        print("Valid Program")
+                if self.nextToken[0] != Tok.END_OF_INPUT:
+                    print("Parse Error: Unrecognized trailing characters")
+                    return False
+                else:
+                    print("Valid Program")
+                    return True
+            else:
+                print("Invalid Program")
+                return False

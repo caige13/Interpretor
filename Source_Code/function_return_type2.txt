@@ -1,0 +1,8 @@
+def function1() begin
+	int a = 5;
+	return (int) a
+end;
+
+int j = function1();
+str a = "hi";
+str a = function1();

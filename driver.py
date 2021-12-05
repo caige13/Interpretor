@@ -8,6 +8,7 @@ if len(sys.argv) > 2:
     option = sys.argv[1]
 else:
     input_file = sys.argv[1]
+    option = "interpretor"
 
 file = open(input_file, "r")
 input = file.read()
