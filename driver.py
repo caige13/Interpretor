@@ -17,7 +17,7 @@ file.close()
 if option == "p" or option == "parse":
     parser = Parse(input)
     parser.parse()
-elif option == "l" or option == "lex":
+elif option == "l" or option == "lexer":
     lexer = Lexer(input)
     next = lexer.lex()
     while next[0] != Tok.END_OF_INPUT and next[0] != Tok.ERROR:
