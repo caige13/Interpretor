@@ -7,11 +7,13 @@ class Symbol(object):
         self.scope = scope
 
 class VarSymbolTable():
-    def __init__(self):
+    def __init__(self, suppress=False):
+        self.suppress = suppress
         self.table = {}
 
     def define(self, symbol):
-        print('Define: %s' % symbol)
+        if not self.suppress:
+            print('Define: %s' % symbol)
         symbol_check = self.table.get(symbol.name)
         if symbol_check:
             if symbol_check.type == "undefined":
@@ -37,7 +39,8 @@ class VarSymbolTable():
         return True
 
     def delteEntry(self, symbol):
-        print("deleting variable " +symbol.name)
+        if not self.suppress:
+            print("deleting variable " +symbol.name)
         symbol_check = self.table.get(symbol.name)
         if symbol_check:
             del self.table[symbol.name]
@@ -51,12 +54,14 @@ class VarSymbolTable():
             #     print("Could not find the variable with same name and scope.")
             #     return False
         else:
-            print("Could not find entries for the given symbol: "+symbol.name)
+            if not self.suppress:
+                print("Could not find entries for the given symbol: "+symbol.name)
             return False
 
     # We should do a lookup first then a lookupSameScope
     def lookup(self, symbol):
-        print('Var Lookup: %s' % symbol)
+        if not self.suppress:
+            print('Var Lookup: %s' % symbol)
         try:
             return self.table.get(symbol.name)
         except:
@@ -77,16 +82,23 @@ class VarSymbolTable():
     #         return False
 
 class LoopSymbol(Symbol):
-    def __init__(self, name, scope, step_size=None):
+    def __init__(self, name, scope, step_size=None, body=None):
+        self.body = body
         super().__init__(name=name, scope=scope)
         self.step_size = step_size
 
 class FuncSymbol(Symbol):
-    def __init__(self, name, return_type=None, scope="globe"):
+    def __init__(self, name, return_type=None, scope="globe", body=None):
+        self.body = body
+        self.param = []
         super().__init__(name=name,type=return_type, scope=scope)
 
+    def add_parameter(self, parameter):
+        self.param.append(parameter)
+
 class VarSymbol(Symbol):
-    def __init__(self, name, type, scope):
+    def __init__(self, name, type=None, scope=None, value=None):
+        self.value = value
         super().__init__(name, type, scope)
 
     def __str__(self):
@@ -95,29 +107,35 @@ class VarSymbol(Symbol):
     __repr__ = __str__
 
 class FunctionSymbolTable():
-    def __init__(self):
+    def __init__(self, suppress = False):
+        self.suppress = suppress
         funcSymbol = FuncSymbol("main")
-        self.table = { "globe":{"main":funcSymbol}, "globe/main":[funcSymbol, VarSymbolTable()] }
+        self.table = { "globe":{"main":funcSymbol}, "globe/main":[funcSymbol, VarSymbolTable(suppress=suppress)] }
 
     def defineFunction(self, symbol):
-        print("Defined "+str(symbol.name))
-        self.table[symbol.scope+"/"+symbol.name] = [symbol, VarSymbolTable()]
+        if not self.suppress:
+            print("Defined "+str(symbol.name))
+        self.table[symbol.scope+"/"+symbol.name] = [symbol, VarSymbolTable(suppress=self.suppress)]
         self.table["globe"][symbol.name]=symbol
 
     def defineLoop(self, symbol):
-        print("Defined loop "+str(symbol.name))
-        self.table[symbol.scope+"/"+symbol.name] = [symbol, VarSymbolTable()]
+        if not self.suppress:
+            print("Defined loop "+str(symbol.name))
+        self.table[symbol.scope+"/"+symbol.name] = [symbol, VarSymbolTable(suppress=self.suppress)]
 
     def lookupFunction(self, name):
-        print("looked up "+name)
+        if not self.suppress:
+            print("looked up "+name)
         return self.table.get("globe/"+name)
 
     def lookupSymbol(self, symbol):
-        print("looked up with symbol "+symbol.name)
+        if not self.suppress:
+            print("looked up with symbol "+symbol.name)
         return self.table.get(symbol.scope+"/"+symbol.name)
 
     def lookupByScope(self, symbol):
-        print("looked up with symbol's scope " + symbol.name)
+        if not self.suppress:
+            print("looked up with symbol's scope " + symbol.name)
         return self.table.get(symbol.scope)
 
     # Given var symbol with self.cur_scope
@@ -126,7 +144,8 @@ class FunctionSymbolTable():
         funcSymb = self.table.get(symbol.scope+"/"+symbol.name)
         if funcSymb:
             funcSymb[0].type = type
-            print("Updated "+str(symbol.name)+"'s return type to "+str(type))
+            if not self.suppress:
+                print("Updated "+str(symbol.name)+"'s return type to "+str(type))
             return True
         else:
             return False
@@ -134,12 +153,14 @@ class FunctionSymbolTable():
     def deleteEntry(self, symbol):
         delete_me = self.table.get(symbol.scope+"/"+symbol.name)
         if delete_me:
-            print("deleting "+symbol.name)
+            if not self.suppress:
+                print("deleting "+symbol.name)
             del delete_me[1]
             del self.table[symbol.scope+"/"+symbol.name]
             del self.table["globe"][symbol.name]
         else:
-            print("Did not find the entry to delete: "+symbol.name)
+            if not self.suppress:
+                print("Did not find the entry to delete: "+symbol.name)
 
     def getGlobe(self):
         return self.table.get("globe")
@@ -180,13 +201,51 @@ class FunctionSymbolTable():
                             return -1
                         return 1
                 else:
-                    print("Could not find the current Scope")
+                    if not self.suppress:
+                        print("Could not find the current Scope")
                     return -3
             else:
                 return 2
         else:
-            print("Could not find the table to define "+symbol.name)
+            if not self.suppress:
+                print("Could not find the table to define "+symbol.name)
             return -2
+
+    def retrieve_existing_instance(self, symbol):
+        scope_split = symbol.scope.split("/")
+        func_symbol = FuncSymbol(name=symbol.scope.split("/")[-1], scope=symbol.scope)
+        to_define_table = self.lookupByScope(func_symbol)
+        if to_define_table:
+            for i in range(len(scope_split) - 1, 0, -1):
+                element_scope = scope_split[0:i + 1]
+                scope = ""
+                temp_scope = ""
+                for j in range(0, len(element_scope)):
+                    if j == len(element_scope) - 1:
+                        scope += element_scope[j]
+                    else:
+                        if j == len(element_scope) - 2:
+                            temp_scope += element_scope[j]
+                        else:
+                            temp_scope += element_scope[j] + "/"
+                        scope += element_scope[j] + "/"
+
+                funcSymbol = FuncSymbol(name=element_scope[-1], scope=scope)
+                table_out = self.lookupByScope(funcSymbol)
+                if table_out:
+                    try:
+                        found_var = table_out[1].lookup(symbol)
+                    except:
+                        found_var = False
+                    if found_var:
+                        if symbol.type == "neutral":
+                            return 1
+                        elif found_var.type == "undefined":
+                            # Most likely means its a parameter
+                            table_out[1].define(symbol)
+                        elif found_var.type != symbol.type:
+                            return -1
+                        return found_var
 
 # class BuiltinTypeSymbol(Symbol):
 #     def __init__(self, name):

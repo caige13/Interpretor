@@ -99,6 +99,6 @@
     <ambiguous> -> ID <ID-operation>
         <return>-> ∈
                 | "return" <return-option>
-<return-cast>   -> "(" <return-option>
+<return-cast>   -> "(" <return-option> # added to make LL grammar
 <return-option  -> "str" ")" <str-expr>
                 | "int" ")" <int-expr>

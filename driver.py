@@ -1,17 +1,21 @@
 import sys
 from lexer import Lexer, Tok
 from parse import Parse
+from interpretor import Interpretor
 
-input_file = sys.argv[2]
-option = sys.argv[1]
+if len(sys.argv) > 2:
+    input_file = sys.argv[2]
+    option = sys.argv[1]
+else:
+    input_file = sys.argv[1]
+    option = "interpretor"
 file = open(input_file, "r")
-
 input = file.read()
 file.close()
 
 if option == "p" or option == "parse":
     parser = Parse(input)
-    parser.parse()
+    value = parser.parse()
 elif option == "l" or option == "lexer":
     lexer = Lexer(input)
     next = lexer.lex()
@@ -21,4 +25,5 @@ elif option == "l" or option == "lexer":
     if next[0] == Tok.ERROR:
         print("ERROR: " + next[1])
 else:
-    print("invalid argument given")
+    interpretor = Interpretor(input)
+    interpretor.interpret_language()
