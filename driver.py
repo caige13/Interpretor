@@ -9,14 +9,13 @@ if len(sys.argv) > 2:
 else:
     input_file = sys.argv[1]
     option = "interpretor"
-
 file = open(input_file, "r")
 input = file.read()
 file.close()
 
 if option == "p" or option == "parse":
     parser = Parse(input)
-    parser.parse()
+    value = parser.parse()
 elif option == "l" or option == "lexer":
     lexer = Lexer(input)
     next = lexer.lex()

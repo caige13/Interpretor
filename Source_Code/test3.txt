@@ -1,7 +1,7 @@
 def name1(a, b, c) begin
 	int a = b+c;
 	int b = 1;
-	print(a);
+	print(b);
 	return (int) a
 end;
 
@@ -14,7 +14,7 @@ for int i=0; i<10; i+1 do
 end;
 
 int abc = 2;
-int d = name1(abc, 2, 3);
+int d = 3;
 if d == 3 then int abc = 2; end;
 print("In this file I will not throw a error");
 printf("hello %s", "name");

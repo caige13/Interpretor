@@ -1,3 +1,28 @@
-str StringTest = "123";
-str idTest = StringTest;
-print("hello"+" World"+str(1));
+def printFunction(a) begin
+for int i=0; i<10; i+1 do
+	int a = a + i;
+end;
+print(a);
+end;
+
+int self = -1;
+if self == 0 then
+	int self = 1;
+elif self > 0 then 
+	int self = 2;
+else
+	int self = 3;
+end;
+print("self: ", self);
+int count = 0;
+int countOther = 0;
+str value = "hello";
+printFunction(count);
+for int i=0; i<10; i+1 do
+	for int j=0; j<5; j+1 do
+		int countOther = countOther + j;
+	end;
+	int count = count + i;
+end;
+print("count: ", count);
+print("countOther: ", countOther);

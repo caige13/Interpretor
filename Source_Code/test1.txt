@@ -1,6 +1,5 @@
-print("How many numbers will you input? ");
-printf("hey %s, I am %d years old.", "Sam", 10);
-get num;
+printf("hey %s, I am %d years old.\n", "Sam", 10);
+get num{"num = "};
 
 int i=0;
 int sum=0;

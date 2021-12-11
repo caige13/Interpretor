@@ -9,5 +9,5 @@ elif d == 3 then int d = [2];
 else 
 	int d = -1; end;
 int j = increment(d);
-print(d);
+print(j);
 if d then print(d); end;
