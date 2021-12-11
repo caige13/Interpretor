@@ -16,7 +16,6 @@ end;
 int abc = 2;
 int d = 3;
 if d == 3 then int abc = 2; end;
-print("In this file I will not throw a error");
 printf("hello %s", "name");
 int d = +3;
 int y = -3;

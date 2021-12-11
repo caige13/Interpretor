@@ -45,10 +45,11 @@ Feel free to mess around with the source code. The writeability is not friendly 
 	and in main scope a is a string and didnt throw an error until it tried to call a function with a 
 	integer return type.
 	
-	- output_parser.txt: Shows the program output when run parser version for test1-4 files.
-	- output_lexer.txt: shows the program output when run lexer version for test1-4 files.
+	- testinterp.txt: A program to test interpreter portion of the project.
+	- testinterp2.txt: A program to test interpreter portion of the project.
 	
 - driver.py: This is the driver program that you would call to begin parsing or lexical analysis. 
+
 ## Instructions will be given below.
 - lexer.py: Where code is for the lexer. It is in a Lexer class.
 - parse.py: Where code is for the parser. it is in a Parse class.
@@ -67,7 +68,7 @@ computer to another. It also insured that I could always have a version of a wor
 ## INSTRUCTIONS:
 There are two different modes that are determined by the input. if a 'l' (lower case L) or 'lexer' command 
 arguments are given then it just runs part 1 for the source code and spits out the tokens. If a 'p' or 
-'parse' command is given then it runs part 2 and parses the program.
+'parse' command is given then it runs part 2 and parses the program. If no command is given except the source code file then it will run the interpreter.
 
 	NOTE: THESE COMMANDS ARE CASE SENSITIVE.
 
@@ -88,6 +89,9 @@ To run the lexer do:
 python driver.py lexer ./Source_Code/test1.txt
 OR
 python driver.py l ./Source_Code/test1.txt will
+
+To run the interpreter do:
+python driver.py ./Source_Code/test3.txt
 
 Extras:
 I used a virtual environment, but had to install no extra libraries so standard python should work.
